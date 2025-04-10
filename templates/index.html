@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Report Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Property Report Generator</h1>
+        </header>
+        
+        <div class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <div class="instructions">
+                <h2>Generate Property Report</h2>
+                <p>Please fill in the details below and upload your property Excel/CSV file to generate a professional property report.</p>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="business_type">Business Type:</label>
+                    <div class="radio-group">
+                        <input type="radio" id="busivet" name="business_type" value="busivet" checked>
+                        <label for="busivet">BusiVet</label>
+                        
+                        <input type="radio" id="busihealth" name="business_type" value="busihealth">
+                        <label for="busihealth">BusiHealth</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="second_line">Report Title Line:</label>
+                    <input type="text" id="second_line" name="second_line" placeholder="e.g., Landscape Report & Site Search" value="Landscape Report & Site Search" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="third_line">Location Line:</label>
+                    <input type="text" id="third_line" name="third_line" placeholder="e.g., Oran Park & Mickleham" value="Oran Park & Mickleham" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="report_date">Report Date:</label>
+                    <input type="text" id="report_date" name="report_date" placeholder="e.g., 26 March 2025" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="file">Property Excel/CSV File:</label>
+                    <div class="file-input-container">
+                        <input type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
+                        <div class="file-input-feedback" id="file-feedback">No file selected</div>
+                    </div>
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                    <button type="submit" class="btn btn-secondary" formaction="/reset" formmethod="POST">Reset</button>
+                </div>
+            </form>
+            
+            <div class="preparation-checklist">
+                <h3>Preparation Checklist:</h3>
+                <ul>
+                    <li>Ensure your Excel/CSV file has the required columns (Type, Property Photo, Street Address, etc.)</li>
+                    <li>Mark properties for inclusion in the report with 'T' in the 'PUT IN REPORT (T/F)' column</li>
+                    <li>Check that any referenced image files exist at their specified paths</li>
+                </ul>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Property Report Generator &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Generating property report, please wait...</div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
