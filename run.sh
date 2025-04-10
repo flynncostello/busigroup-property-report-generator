@@ -42,7 +42,10 @@ fi
 
 # Check Python version (3.8+ required)
 python_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-if [[ $(echo "$python_version >= 3.8" | bc) -ne 1 ]]; then
+python_major=$(echo $python_version | cut -d. -f1)
+python_minor=$(echo $python_version | cut -d. -f2)
+
+if [[ $python_major -lt 3 || ($python_major -eq 3 && $python_minor -lt 8) ]]; then
     echo "ERROR: Python $python_version detected, but Python 3.8 or higher is required."
     echo "Please upgrade Python from https://www.python.org/downloads/"
     exit 1
