@@ -1,7 +1,8 @@
 Flask
 pandas
 openpyxl
-reportlab
 Werkzeug
 Pillow
 numpy
+weasyprint
+jinja2
