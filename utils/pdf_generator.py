@@ -306,6 +306,11 @@ def create_cover_page(logo_path, title_background_path, first_line, second_line,
     """
     logger.info("Creating cover page content")
     
+    # Get page dimensions for full-width elements
+    page_width = A4[0]
+    page_height = A4[1]
+    content_width = page_width - inch  # Account for margins
+    
     # Create styles
     styles = getSampleStyleSheet()
     
@@ -314,20 +319,22 @@ def create_cover_page(logo_path, title_background_path, first_line, second_line,
         'CoverTitle',
         parent=styles['Title'],
         fontName='Helvetica-Bold',
-        fontSize=36,
+        fontSize=34,  # Slightly smaller to fit better
         alignment=TA_CENTER,
         textColor=colors.white,
-        spaceAfter=5
+        spaceAfter=8,  # Adjusted spacing
+        spaceBefore=15   # Added spacing before
     )
     
     subtitle_style = ParagraphStyle(
         'CoverSubtitle',
         parent=styles['Title'],
         fontName='Helvetica',
-        fontSize=28,
+        fontSize=24,  # Slightly smaller to fit better
         alignment=TA_CENTER,
         textColor=colors.white,
-        spaceAfter=5
+        spaceAfter=8,  # Adjusted spacing
+        spaceBefore=8   # Added spacing before
     )
     
     date_style = ParagraphStyle(
@@ -344,7 +351,7 @@ def create_cover_page(logo_path, title_background_path, first_line, second_line,
         parent=styles['Normal'],
         fontName='Helvetica',
         fontSize=10,
-        alignment=TA_CENTER,
+        alignment=TA_LEFT,
         textColor=colors.white
     )
     
@@ -353,28 +360,65 @@ def create_cover_page(logo_path, title_background_path, first_line, second_line,
         parent=styles['Normal'],
         fontName='Helvetica',
         fontSize=10,
-        alignment=TA_CENTER,
+        alignment=TA_LEFT,
         textColor=colors.white
     )
     
-    # Create content
+    # Calculate proportions for a well-balanced page
+    logo_height = 0.7*inch
+    background_height = page_height * 0.5  # Half the page for background image
+    blue_section_height = page_height * 0.4  # Rest for blue section
+    
+    # Create full-page frame first
     elements = []
     
-    # Logo with white background at top center
-    elements.append(Spacer(1, 0.5*inch))  # 0.5 inch top margin
-    
-    # Create a table with a white background for the logo
-    if os.path.exists(logo_path):
-        img = Image(logo_path)
-        img_width = 2*inch
-        img_height = 1.2*inch
-        img.drawWidth = img_width
-        img.drawHeight = img_height
+    # First add the background image, which will be overlaid by other elements
+    if os.path.exists(title_background_path):
+        # Background image - FULL WIDTH of page
+        bg_img = Image(title_background_path)
         
+        # Keep original proportions but stretch to full width
+        img_aspect = bg_img.imageWidth / float(bg_img.imageHeight) if bg_img.imageHeight > 0 else 1.5
+        
+        # Calculate proper dimensions based on aspect ratio
+        bg_width = page_width
+        bg_height = background_height
+        
+        bg_img.drawWidth = bg_width
+        bg_img.drawHeight = bg_height
+        
+        # Position at top of page
+        bg_table = Table(
+            [[bg_img]],
+            colWidths=[page_width],
+            rowHeights=[bg_height]
+        )
+        
+        bg_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        
+        elements.append(bg_table)
+    else:
+        logger.warning(f"Title background image not found at: {title_background_path}")
+        elements.append(Spacer(1, background_height))
+    
+    # Position logo at top center, overlaying the background image
+    if os.path.exists(logo_path):
+        # Create image with preserved aspect ratio
+        logo_img = Image(logo_path)
+        logo_width = 2*inch
+        
+        # Calculate height based on original aspect ratio
+        img_aspect = logo_img.imageWidth / float(logo_img.imageHeight) if logo_img.imageHeight > 0 else 2
+        logo_height = logo_width / img_aspect
+        
+        # Create a table for the logo with padding and white background
         logo_table = Table(
-            [[img]],
-            colWidths=[img_width],
-            rowHeights=[img_height]
+            [[logo_img]],
+            colWidths=[logo_width],
+            rowHeights=[logo_height]
         )
         
         logo_table.setStyle(TableStyle([
@@ -382,88 +426,169 @@ def create_cover_page(logo_path, title_background_path, first_line, second_line,
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('BACKGROUND', (0, 0), (-1, -1), colors.white),
             ('BOX', (0, 0), (-1, -1), 1, colors.white),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
         ]))
         
-        logo_table.hAlign = 'CENTER'
-        elements.append(logo_table)
+        # Set absolute position at top center, overlay on background
+        logo_container = Table(
+            [[logo_table]],
+            colWidths=[page_width],
+            rowHeights=[logo_height + 20]  # Add padding
+        )
+        
+        logo_container.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (0, 0), 'TOP'),
+            ('TOPPADDING', (0, 0), (0, 0), 15),  # Space from top of page
+        ]))
+        
+        # This positions the logo at a fixed position from the top of the page
+        elements = [logo_container]  # Reset elements to start with logo on top
+        
+        # Re-add background image
+        if os.path.exists(title_background_path):
+            bg_img = Image(title_background_path)
+            
+            # Keep original proportions but stretch to full width
+            img_aspect = bg_img.imageWidth / float(bg_img.imageHeight) if bg_img.imageHeight > 0 else 1.5
+            
+            # Calculate proper dimensions based on aspect ratio
+            bg_width = page_width
+            bg_height = background_height
+            
+            bg_img.drawWidth = bg_width
+            bg_img.drawHeight = bg_height
+            
+            # Add spacing to position below logo
+            elements.append(Spacer(1, logo_height))
+            
+            bg_table = Table(
+                [[bg_img]],
+                colWidths=[page_width],
+                rowHeights=[bg_height - logo_height - 20]  # Adjust for logo
+            )
+            
+            bg_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            
+            elements.append(bg_table)
     else:
         logger.warning(f"Logo image not found at: {logo_path}")
     
-    elements.append(Spacer(1, 0.1*inch))  # Space after logo
-    
-    # Add title page background image (proportionally sized)
-    if os.path.exists(title_background_path):
-        bg_img = Image(title_background_path)
-        # Set to appropriate dimensions (top 2/3 of the page)
-        bg_img.drawWidth = 7.5*inch
-        bg_img.drawHeight = 4*inch
-        bg_img.hAlign = 'CENTER'
-        elements.append(bg_img)
-    else:
-        logger.warning(f"Title background image not found at: {title_background_path}")
-        # Spacer as fallback
-        elements.append(Spacer(1, 4*inch))
-    
     # Add orange divider line (10px height, full width)
-    elements.append(
-        Paragraph(
-            f'<hr width="100%" height="10" color="{color_to_hex(ORANGE_COLOR)}"/>',
-            styles['Normal']
-        )
+    orange_divider = Table(
+        [[Paragraph(f'<hr width="100%" height="10" color="{color_to_hex(ORANGE_COLOR)}"/>', styles['Normal'])]],
+        colWidths=[page_width],
+        rowHeights=[20]
     )
     
-    # Create blue background div for text sections
+    orange_divider.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    
+    elements.append(orange_divider)
+    
+    # Create blue background section for text
+    blue_content = [
+        [Spacer(1, 15)],  # Space at top of blue section
+        [Paragraph(f'<font color="white">{first_line}</font>', title_style)],
+        [Paragraph(f'<font color="white">{second_line}</font>', subtitle_style)],
+        [Paragraph(f'<font color="white">{third_line}</font>', subtitle_style)],
+        [Spacer(1, 20)],  # Space before date
+        [Paragraph(
+            f'''<table width="40%" align="center" bgcolor="{color_to_hex(ORANGE_COLOR)}" style="border-radius: 5px; padding: 10px;">
+                <tr><td align="center">{report_date}</td></tr>
+               </table>''',
+            date_style
+        )],
+        [Spacer(1, 20)]  # Space before footer
+    ]
+    
+    # Calculate remaining height for blue section
+    blue_section_height = page_height - background_height - 0.7*inch  # Adjusted for logo and divider
+    
     blue_background = Table(
-        [[Paragraph(f'<font color="white">{first_line}</font>', title_style)],
-         [Paragraph(f'<font color="white">{second_line}</font>', subtitle_style)],
-         [Paragraph(f'<font color="white">{third_line}</font>', subtitle_style)],
-         [Spacer(1, 20)],  # Space before date
-         [Paragraph(
-             f'''<table width="40%" align="center" bgcolor="{color_to_hex(ORANGE_COLOR)}" style="border-radius: 5px; padding: 10px;">
-                 <tr><td align="center">{report_date}</td></tr>
-                </table>''',
-             date_style
-         )],
-         [Spacer(1, 40)]  # Space before footer
-        ],
-        colWidths=[7*inch],
+        blue_content,
+        colWidths=[page_width],
         style=TableStyle([
             ('BACKGROUND', (0, 0), (0, -1), BLUE_COLOR),
             ('ALIGN', (0, 0), (0, -1), 'CENTER'),
             ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
-            ('BOTTOMPADDING', (0, 0), (0, -2), 15),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ])
     )
-    elements.append(blue_background)
     
-    # Add website and email in a footer section
-    footer_table = Table(
-        [[
-            Spacer(1, 0),
+    # Wrap in a container to ensure full width
+    blue_container = Table(
+        [[blue_background]],
+        colWidths=[page_width],
+        rowHeights=[blue_section_height - 100]  # Reserve space for footer
+    )
+    
+    blue_container.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, 0), BLUE_COLOR),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (0, 0), 'TOP'),
+        ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ('RIGHTPADDING', (0, 0), (0, 0), 0),
+    ]))
+    
+    elements.append(blue_container)
+    
+    # Create footer with website and email side by side
+    # Use a horizontal layout with the globe icon next to the website
+    footer_content = [
+        [   # Single row with icon and website side by side
             Image(global_icon_path, width=0.3*inch, height=0.3*inch) if os.path.exists(global_icon_path) else Spacer(1, 0.3*inch),
             Paragraph(website, website_style),
-            Spacer(1, 0)
-        ],
-        [
-            Spacer(1, 0),
-            Spacer(1, 0.3*inch),
-            Paragraph(email, email_style),
-            Spacer(1, 0)
-        ]],
-        colWidths=[1*inch, 0.3*inch, 4.4*inch, 1*inch],
+            Spacer(1, 0.5*inch),  # Spacer between website and email
+            Paragraph(email, email_style)
+        ]
+    ]
+    
+    footer_table = Table(
+        footer_content,
+        colWidths=[0.4*inch, 2.5*inch, 0.5*inch, 3*inch],
         style=TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), BLUE_COLOR),
-            ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),  # Align icon right
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),   # Align website left
+            ('ALIGN', (3, 0), (3, -1), 'LEFT'),   # Align email left
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('SPAN', (1, 0), (1, 0)),  # Just for the icon
-            ('SPAN', (1, 1), (1, 1)),  # Empty cell
         ])
     )
-    elements.append(footer_table)
+    
+    # Create a full-width container for the footer
+    footer_container = Table(
+        [[footer_table]],
+        colWidths=[page_width],
+        rowHeights=[50]  # Fixed height for footer
+    )
+    
+    footer_container.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), BLUE_COLOR),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    
+    elements.append(footer_container)
     
     # Add page break and switch to content template for next pages
-    elements.append(PageBreak())
     elements.append(NextPageTemplate('content'))
+    elements.append(PageBreak())
     
     return elements
 
