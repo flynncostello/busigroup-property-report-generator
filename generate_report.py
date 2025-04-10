@@ -66,7 +66,7 @@ def generate_report(file_path, business_type, title_line, location_line, report_
         
         # Process Excel data
         logger.info("Processing property data...")
-        processed_data = process_excel_data(df)
+        processed_data = process_excel_data(df, file_path)
         
         # Generate PDF report
         logger.info("Generating PDF report...")

@@ -11,12 +11,134 @@ import numpy as np
 import sys
 import base64
 import io
+import tempfile
+import zipfile
+import shutil
 from PIL import Image
-import openpyxl
-from openpyxl_image_loader import SheetImageLoader
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
+def extract_excel_images(excel_path):
+    """
+    Extract images from Excel by treating the file as a ZIP archive.
+    
+    Args:
+        excel_path (str): Path to the Excel file
+        
+    Returns:
+        dict: Dictionary of extracted images as base64 data URLs
+    """
+    if not os.path.exists(excel_path):
+        logger.error(f"Excel file not found: {excel_path}")
+        return {}
+    
+    image_dict = {}
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        logger.info(f"Extracting Excel file as ZIP: {excel_path}")
+        
+        # Copy Excel file to temp folder and rename to zip
+        temp_excel = os.path.join(temp_dir, "temp.xlsx")
+        temp_zip = os.path.join(temp_dir, "temp.zip")
+        shutil.copy2(excel_path, temp_excel)
+        shutil.move(temp_excel, temp_zip)
+        
+        # Extract the ZIP contents
+        extract_folder = os.path.join(temp_dir, "extracted")
+        os.makedirs(extract_folder, exist_ok=True)
+        
+        with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+            zip_ref.extractall(extract_folder)
+            
+        # Look for images in xl/media folder
+        media_folder = os.path.join(extract_folder, "xl", "media")
+        if os.path.exists(media_folder):
+            image_files = [f for f in os.listdir(media_folder) 
+                          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+            
+            logger.info(f"Found {len(image_files)} images in Excel file")
+            
+            # Convert each image to a data URL
+            for i, img_file in enumerate(image_files):
+                img_path = os.path.join(media_folder, img_file)
+                try:
+                    with open(img_path, 'rb') as f:
+                        img_data = f.read()
+                        
+                    img_format = img_file.split('.')[-1].lower()
+                    if img_format == 'jpg':
+                        img_format = 'jpeg'
+                        
+                    b64_data = base64.b64encode(img_data).decode('utf-8')
+                    data_url = f"data:image/{img_format};base64,{b64_data}"
+                    
+                    # Store with index (will need to be mapped to the correct property later)
+                    image_dict[i+1] = {
+                        'data_url': data_url,
+                        'filename': img_file
+                    }
+                    
+                    logger.info(f"Processed image {i+1}: {img_file} ({len(img_data)} bytes)")
+                except Exception as e:
+                    logger.error(f"Error processing image {img_file}: {str(e)}")
+        else:
+            logger.warning("No media folder found in Excel file. No images to extract.")
+    
+    except Exception as e:
+        logger.error(f"Error extracting images from Excel: {str(e)}")
+    
+    finally:
+        # Clean up temp directory
+        shutil.rmtree(temp_dir)
+    
+    return image_dict
+
+def map_images_to_properties(df, images):
+    """
+    Map extracted images to properties.
+    This is a simple approach that assumes images appear in the same order as properties.
+    
+    Args:
+        df (pandas.DataFrame): The property DataFrame
+        images (dict): Dictionary of extracted images
+        
+    Returns:
+        dict: DataFrame index to image data URL mapping
+    """
+    if not images:
+        return {}
+    
+    # Get properties that should be included in the report
+    properties_for_report = df[df['PUT IN REPORT (T/F)'] == 'T'].copy()
+    
+    # Create mapping of DataFrame index to image data URL
+    image_mapping = {}
+    
+    # Get properties by type for consistent ordering
+    for_lease = properties_for_report[properties_for_report['Type'] == 'For Lease']
+    for_sale = properties_for_report[properties_for_report['Type'] == 'For Sale']
+    
+    # Assign images in order, first to For Lease properties, then to For Sale
+    image_counter = 1
+    
+    # Map images to For Lease properties
+    for idx in for_lease.index:
+        if image_counter <= len(images):
+            image_mapping[idx] = images[image_counter]['data_url']
+            logger.info(f"Mapped image {image_counter} to property at index {idx}")
+            image_counter += 1
+    
+    # Map images to For Sale properties
+    for idx in for_sale.index:
+        if image_counter <= len(images):
+            image_mapping[idx] = images[image_counter]['data_url']
+            logger.info(f"Mapped image {image_counter} to property at index {idx}")
+            image_counter += 1
+    
+    logger.info(f"Mapped {image_counter-1} images to properties")
+    return image_mapping
 
 def process_excel_data(df, excel_file_path=None):
     """
@@ -33,61 +155,17 @@ def process_excel_data(df, excel_file_path=None):
     logger.info(f"DataFrame shape: {df.shape}")
     logger.info(f"DataFrame columns: {list(df.columns)}")
     
-    # Initialize dictionary to hold images extracted from Excel
+    # Extract images using the ZIP method if Excel file path is provided
     image_dict = {}
-    
-    # Extract images directly from Excel file if path is provided
-    if excel_file_path and os.path.exists(excel_file_path) and excel_file_path.endswith(('.xlsx', '.xls')):
-        try:
-            logger.info(f"Loading Excel file for image extraction: {excel_file_path}")
-            workbook = openpyxl.load_workbook(excel_file_path)
-            sheet = workbook.active
-            image_loader = SheetImageLoader(sheet)
-            
-            # Find the Property Photo column index in Excel
-            property_photo_col = None
-            for col_idx, header in enumerate(sheet[1], 1):  # Assuming headers are in row 1
-                if header.value == "Property Photo":
-                    property_photo_col = col_idx
-                    logger.info(f"Found 'Property Photo' column at index {property_photo_col}")
-                    break
-            
-            if property_photo_col:
-                # Iterate through each row, extract image if present in Property Photo column
-                for row_idx in range(2, sheet.max_row + 1):  # Start from row 2 (skipping header)
-                    cell_coord = f"{openpyxl.utils.get_column_letter(property_photo_col)}{row_idx}"
-                    
-                    # Check if cell has an image
-                    if image_loader.image_in(cell_coord):
-                        logger.info(f"Found image in cell {cell_coord}")
-                        try:
-                            # Get the image
-                            image = image_loader.get(cell_coord)
-                            
-                            # Convert image to data URL
-                            img_byte_arr = io.BytesIO()
-                            image.save(img_byte_arr, format='JPEG')
-                            img_byte_arr.seek(0)
-                            img_bytes = img_byte_arr.getvalue()
-                            b64_image = base64.b64encode(img_bytes).decode('utf-8')
-                            data_url = f"data:image/jpeg;base64,{b64_image}"
-                            
-                            # Store in dictionary with row index as key
-                            image_dict[row_idx] = data_url
-                            logger.info(f"Successfully extracted image from cell {cell_coord} (size: {len(img_bytes)} bytes)")
-                            logger.info(f"Data URL starts with: {data_url[:30]}...")
-                        except Exception as e:
-                            logger.error(f"Error extracting image from cell {cell_coord}: {str(e)}")
-                
-                logger.info(f"Extracted {len(image_dict)} images from Excel file")
-            else:
-                logger.warning("Could not find 'Property Photo' column in Excel sheet")
-        except ImportError:
-            logger.error("openpyxl or openpyxl_image_loader not installed. Cannot extract images.")
-        except Exception as e:
-            logger.error(f"Error loading Excel file for image extraction: {str(e)}")
-    else:
-        logger.warning(f"Excel file path not provided or invalid: {excel_file_path}")
+    if excel_file_path and os.path.exists(excel_file_path):
+        logger.info(f"Extracting images from Excel file: {excel_file_path}")
+        extracted_images = extract_excel_images(excel_file_path)
+        if extracted_images:
+            # Map images to properties
+            image_dict = map_images_to_properties(df, extracted_images)
+            logger.info(f"Mapped {len(image_dict)} images to properties")
+        else:
+            logger.warning("No images were extracted from the Excel file")
     
     # Validate required columns
     required_columns = [
@@ -175,8 +253,8 @@ def process_excel_data(df, excel_file_path=None):
         lease_properties = df[(df['Type'] == 'For Lease') & (df['PUT IN REPORT (T/F)'] == 'T')]
         
         for idx, property_row in lease_properties.iterrows():
-            # Get image data from the extracted images dictionary if available
-            image_data = image_dict.get(idx + 2)  # +2 because Excel rows start from 1 and row 1 is header
+            # Get image data for this property if available
+            image_data = image_dict.get(idx)
             property_data = extract_property_data(property_row, 'For Lease', image_data)
             result['for_lease_properties'].append(property_data)
             
@@ -191,8 +269,8 @@ def process_excel_data(df, excel_file_path=None):
         sale_properties = df[(df['Type'] == 'For Sale') & (df['PUT IN REPORT (T/F)'] == 'T')]
         
         for idx, property_row in sale_properties.iterrows():
-            # Get image data from the extracted images dictionary if available
-            image_data = image_dict.get(idx + 2)  # +2 because Excel rows start from 1 and row 1 is header
+            # Get image data for this property if available
+            image_data = image_dict.get(idx)
             property_data = extract_property_data(property_row, 'For Sale', image_data)
             result['for_sale_properties'].append(property_data)
             
@@ -307,7 +385,7 @@ def extract_property_data(row, property_type, image_data=None):
     # Count of properties processed with images
     if image_data:
         logger.info(f"✅ Property {street_address} has image data")
-        logger.info(f"Image data URL starts with: {image_data[:30]}...")
+        logger.info(f"Image data URL starts with: {image_data}")
     else:
         logger.info(f"❌ Property {street_address} is missing image data")
     

@@ -216,9 +216,9 @@ class HtmlBuilder:
                     'property_type': property_data['property type'],
                     'car_spaces': property_data['car spaces'],
                     'comments': property_data.get('comments', ''),
-                    'image': property_data.get('image')
+                    'image': property_data.get('image_data') or property_data.get('image')  # Try image_data first, then fall back to image
                 }
-                
+                            
                 # Render property item template
                 item_template = self.env.get_template('property_item')
                 item_html = item_template.render(
