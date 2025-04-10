@@ -9,16 +9,22 @@ import logging
 import pandas as pd
 import numpy as np
 import sys
+import base64
+import io
+from PIL import Image
+import openpyxl
+from openpyxl_image_loader import SheetImageLoader
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
-def process_excel_data(df):
+def process_excel_data(df, excel_file_path=None):
     """
     Process the Excel/CSV data and extract relevant information for the report.
     
     Args:
         df (pandas.DataFrame): The dataframe containing property data
+        excel_file_path (str, optional): Path to the original Excel file for direct image extraction
         
     Returns:
         dict: A dictionary containing all processed data needed for the report
@@ -26,6 +32,62 @@ def process_excel_data(df):
     logger.info("Starting data processing")
     logger.info(f"DataFrame shape: {df.shape}")
     logger.info(f"DataFrame columns: {list(df.columns)}")
+    
+    # Initialize dictionary to hold images extracted from Excel
+    image_dict = {}
+    
+    # Extract images directly from Excel file if path is provided
+    if excel_file_path and os.path.exists(excel_file_path) and excel_file_path.endswith(('.xlsx', '.xls')):
+        try:
+            logger.info(f"Loading Excel file for image extraction: {excel_file_path}")
+            workbook = openpyxl.load_workbook(excel_file_path)
+            sheet = workbook.active
+            image_loader = SheetImageLoader(sheet)
+            
+            # Find the Property Photo column index in Excel
+            property_photo_col = None
+            for col_idx, header in enumerate(sheet[1], 1):  # Assuming headers are in row 1
+                if header.value == "Property Photo":
+                    property_photo_col = col_idx
+                    logger.info(f"Found 'Property Photo' column at index {property_photo_col}")
+                    break
+            
+            if property_photo_col:
+                # Iterate through each row, extract image if present in Property Photo column
+                for row_idx in range(2, sheet.max_row + 1):  # Start from row 2 (skipping header)
+                    cell_coord = f"{openpyxl.utils.get_column_letter(property_photo_col)}{row_idx}"
+                    
+                    # Check if cell has an image
+                    if image_loader.image_in(cell_coord):
+                        logger.info(f"Found image in cell {cell_coord}")
+                        try:
+                            # Get the image
+                            image = image_loader.get(cell_coord)
+                            
+                            # Convert image to data URL
+                            img_byte_arr = io.BytesIO()
+                            image.save(img_byte_arr, format='JPEG')
+                            img_byte_arr.seek(0)
+                            img_bytes = img_byte_arr.getvalue()
+                            b64_image = base64.b64encode(img_bytes).decode('utf-8')
+                            data_url = f"data:image/jpeg;base64,{b64_image}"
+                            
+                            # Store in dictionary with row index as key
+                            image_dict[row_idx] = data_url
+                            logger.info(f"Successfully extracted image from cell {cell_coord} (size: {len(img_bytes)} bytes)")
+                            logger.info(f"Data URL starts with: {data_url[:30]}...")
+                        except Exception as e:
+                            logger.error(f"Error extracting image from cell {cell_coord}: {str(e)}")
+                
+                logger.info(f"Extracted {len(image_dict)} images from Excel file")
+            else:
+                logger.warning("Could not find 'Property Photo' column in Excel sheet")
+        except ImportError:
+            logger.error("openpyxl or openpyxl_image_loader not installed. Cannot extract images.")
+        except Exception as e:
+            logger.error(f"Error loading Excel file for image extraction: {str(e)}")
+    else:
+        logger.warning(f"Excel file path not provided or invalid: {excel_file_path}")
     
     # Validate required columns
     required_columns = [
@@ -112,8 +174,10 @@ def process_excel_data(df):
         logger.info("Processing 'For Lease' properties")
         lease_properties = df[(df['Type'] == 'For Lease') & (df['PUT IN REPORT (T/F)'] == 'T')]
         
-        for _, property_row in lease_properties.iterrows():
-            property_data = extract_property_data(property_row, 'For Lease')
+        for idx, property_row in lease_properties.iterrows():
+            # Get image data from the extracted images dictionary if available
+            image_data = image_dict.get(idx + 2)  # +2 because Excel rows start from 1 and row 1 is header
+            property_data = extract_property_data(property_row, 'For Lease', image_data)
             result['for_lease_properties'].append(property_data)
             
         logger.info(f"Processed {len(result['for_lease_properties'])} 'For Lease' properties")
@@ -126,8 +190,10 @@ def process_excel_data(df):
         logger.info("Processing 'For Sale' properties")
         sale_properties = df[(df['Type'] == 'For Sale') & (df['PUT IN REPORT (T/F)'] == 'T')]
         
-        for _, property_row in sale_properties.iterrows():
-            property_data = extract_property_data(property_row, 'For Sale')
+        for idx, property_row in sale_properties.iterrows():
+            # Get image data from the extracted images dictionary if available
+            image_data = image_dict.get(idx + 2)  # +2 because Excel rows start from 1 and row 1 is header
+            property_data = extract_property_data(property_row, 'For Sale', image_data)
             result['for_sale_properties'].append(property_data)
             
         logger.info(f"Processed {len(result['for_sale_properties'])} 'For Sale' properties")
@@ -149,7 +215,8 @@ def calculate_average_price_per_sqm(df, property_type, put_in_report):
     Returns:
         int: The average price per square meter as an integer (rounded)
     """
-    filtered_df = df[(df['Type'] == property_type) & (df['PUT IN REPORT (T/F)'] == put_in_report)]
+    # Create a proper copy to avoid SettingWithCopyWarning
+    filtered_df = df[(df['Type'] == property_type) & (df['PUT IN REPORT (T/F)'] == put_in_report)].copy()
     
     logger.debug(f"Calculating average $/m² for {property_type} (PUT IN REPORT = {put_in_report})")
     logger.debug(f"Found {len(filtered_df)} matching properties")
@@ -160,28 +227,31 @@ def calculate_average_price_per_sqm(df, property_type, put_in_report):
     
     # Convert '$/m²' column to numeric, handling non-numeric values
     if '$/m²' in filtered_df.columns:
-        # Convert column to string first to handle any non-string values
-        filtered_df['$/m²'] = filtered_df['$/m²'].astype(str)
+        # Create a temporary series from the column to avoid FutureWarning
+        # and perform operations on it instead of directly on the DataFrame
+        temp_series = pd.Series(filtered_df['$/m²']).astype(str)
+        temp_series = temp_series.str.replace('$', '', regex=False)
+        temp_series = temp_series.str.replace(',', '', regex=False)
+        numeric_values = pd.to_numeric(temp_series, errors='coerce')
         
-        # Remove $ and commas, then convert to float
-        filtered_df['$/m²'] = filtered_df['$/m²'].str.replace('$', '', regex=False)
-        filtered_df['$/m²'] = filtered_df['$/m²'].str.replace(',', '', regex=False)
-        filtered_df['$/m²'] = pd.to_numeric(filtered_df['$/m²'], errors='coerce')
+        # Assign back to DataFrame
+        filtered_df.loc[:, '$/m²'] = numeric_values
         
         # Calculate average, ignoring NaN values
-        avg_price = filtered_df['$/m²'].mean()
+        avg_price = numeric_values.mean()
         return round(avg_price) if not np.isnan(avg_price) else 0
     else:
         logger.warning("$/m² column not found in filtered dataframe")
         return 0
 
-def extract_property_data(row, property_type):
+def extract_property_data(row, property_type, image_data=None):
     """
     Extract and format property data from a row in the dataframe.
     
     Args:
         row (pandas.Series): A row from the properties dataframe
         property_type (str): The type of property ('For Lease' or 'For Sale')
+        image_data (str, optional): Base64 image data if available
         
     Returns:
         dict: A dictionary with the formatted property data
@@ -215,13 +285,6 @@ def extract_property_data(row, property_type):
     # Format car spaces
     car_spaces = str(row['Car']) if pd.notna(row['Car']) else "-"
     
-    # Process image path - check if it's a valid path and exists
-    image_path = row['Property Photo'] if pd.notna(row['Property Photo']) else None
-    if image_path and isinstance(image_path, str):
-        if not os.path.exists(image_path):
-            logger.warning(f"Property photo not found at path: {image_path}")
-            image_path = None
-    
     # Extract property data with key names matching pdf_generator expectations
     property_data = {
         'suburb': str(row['Suburb']),  # Keep original for header
@@ -233,10 +296,21 @@ def extract_property_data(row, property_type):
         'property type': str(row['Property Type']) if pd.notna(row['Property Type']) else "Commercial",
         'car spaces': car_spaces,      # Space in key name
         'comments': str(row["Busi's Comment"]) if pd.notna(row["Busi's Comment"]) else "",
-        'image': image_path
+        'image_data': image_data       # Base64 image data from Excel
     }
     
-    logger.debug(f"Extracted property data: {street_address}, {suburb}, {price}")
+    # Log detailed information about extracted property
+    logger.info(f"Extracted property data for {street_address}, {suburb}")
+    logger.info(f"Property Type: {property_type}, Price: {price}, Floor Area: {floor_area}")
+    logger.info(f"Image data present: {'Yes' if image_data else 'No'}")
+    
+    # Count of properties processed with images
+    if image_data:
+        logger.info(f"✅ Property {street_address} has image data")
+        logger.info(f"Image data URL starts with: {image_data[:30]}...")
+    else:
+        logger.info(f"❌ Property {street_address} is missing image data")
+    
     return property_data
 
 def format_price_string(price_value):

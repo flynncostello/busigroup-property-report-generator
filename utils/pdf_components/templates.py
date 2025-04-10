@@ -9,18 +9,22 @@ def get_html_head():
     Returns the HTML head section with CSS links
     """
     return """<!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="margin: 0; padding: 0;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Property Report</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        /* Override default margins and padding */
+        @page { margin: 0; padding: 0; size: A4; }
+        html, body { margin: 0 !important; padding: 0 !important; }
+        
         /* Include CSS inline for PDF generation */
         {% include 'styles.css' %}
     </style>
 </head>
-<body>
+<body style="margin: 0; padding: 0;">
 """
 
 def get_html_footer():
@@ -32,44 +36,48 @@ def get_html_footer():
 </html>
 """
 
+
 def get_cover_page_template():
     """
-    Returns the template for the cover page
+    Returns the template for the cover page with improved image handling and proper sizing
     """
     return """
-<div class="page cover-page">
-    <!-- Cover page background image -->
-    <img src="{{ title_background_path }}" class="cover-bg-image" alt="Cover background">
-    
-    <!-- Logo overlaid on top -->
-    <div class="cover-logo-container">
-        <div class="logo">
-            <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 70px;">
-        </div>
-    </div>
-    
-    <!-- Orange divider at middle -->
-    <div class="orange-divider" style="position: absolute; top: 50%; z-index: 2;"></div>
-    
-    <!-- Blue content area -->
-    <div class="cover-content">
-        <h1 class="cover-title">{{ first_line }}</h1>
-        <h2 class="cover-subtitle">{{ second_line }}</h2>
-        <h2 class="cover-subtitle">{{ third_line }}</h2>
+    <div class="page cover-page" style="height: 842pt">
+        <!-- Cover page background image -->
+        <img src="{{ title_background_path }}" alt="Cover background" class="cover-bg-image">
         
-        <div class="date-box">{{ report_date }}</div>
-        
-        <div class="footer">
-            <div style="display: flex; align-items: center;">
-                <img src="{{ global_icon_path }}" alt="Globe" class="globe-icon" style="height: 15px;">
-                <span>{{ website }}</span>
+        <!-- Logo overlaid on top -->
+        <div class="cover-logo-container">
+            <div class="logo">
+                <img src="{{ logo_path }}" alt="{{ business_type }} Logo" class="logo-image">
             </div>
-            <div class="footer-separator"></div>
-            <div>{{ email }}</div>
+        </div>
+        
+        <!-- Orange divider -->
+        <div class="orange_divider_cover_page"></div>
+        
+        <!-- Blue content area -->
+        <div class="cover-content">
+            <h1 class="cover-title">{{ first_line }}</h1>
+            <h2 class="cover-subtitle">{{ second_line }}</h2>
+            <h2 class="cover-subtitle">{{ third_line }}</h2>
+            
+            <div class="date-box">{{ report_date }}</div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div style="display: flex; align-items: center; justify-content: center;">
+                <img src="{{ global_icon_path }}" alt="Globe" class="globe-icon">
+                <span>{{ website }}</span>
+                <div class="footer-separator">|</div>
+                <div>{{ email }}</div>
+            </div>
         </div>
     </div>
-</div>
-"""
+    """
+
+
 
 def get_map_page_template():
     """
@@ -77,12 +85,15 @@ def get_map_page_template():
     """
     return """
 <div class="page">
+    <!-- Watermark -->
+    <img src="{{ watermark_path }}" class="page-watermark" alt="Watermark">
+    
     <div class="map-header">
-        <div class="map-title">{{ location | upper }} & SURROUNDS ({{ report_date | upper }})</div>
-        <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 40px;">
+        <div class="map-title">{{ location | upper }} ({{ report_date | upper }})</div>
+        <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 60px;">
     </div>
     
-    <div class="orange-divider" style="width: 95%; margin: 0 auto;"></div>
+    <div class="orange-divider" style="width: 95%; margin-top: 15px;"></div>
     
     <img src="{{ map_path }}" alt="Area Map" class="map-image">
     
@@ -125,8 +136,8 @@ def get_map_page_template():
     
     <div class="footnote">*Rate reflects type of comparable properties</div>
     
-    <div style="position: absolute; bottom: 0; left: 0; width: 100%;" class="blue-bg">
-        <div style="text-align: center; padding: 15px;">{{ website }}</div>
+    <div style="position: absolute; bottom: 0; left: 0; width: 100%; margin: 0; padding: 0;" class="blue-bg">
+        <div style="text-align: center; padding: 15px; font-size: 12px">{{ website }}</div>
     </div>
 </div>
 """
@@ -137,100 +148,110 @@ def get_property_page_header_template():
     """
     return """
 <div class="page">
+    <!-- Watermark -->
+    <img src="{{ watermark_path }}" class="page-watermark" alt="Watermark">
+    
     <div class="property-header">
         <div class="property-title">{{ section_title }}</div>
-        <div style="text-align: center; font-size: 16px; color: #3e5ba2; font-weight: 500;">{{ report_date }}</div>
-        <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 40px;">
+        <div style="text-align: center; font-size: 25px; color: rgb(62, 91, 162); font-weight: 500; text-transform: uppercase;">{{ report_date }}</div>
+        <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 60px;">
     </div>
     
-    <div class="orange-divider" style="width: 95%; margin: 0 auto;"></div>
+    <div class="orange-divider" style="margin-bottom=30px"></div>
 """
+
 
 def get_property_item_template():
     """
     Returns the template for a property item
     """
     return """
-    <div class="property-section-title">{{ property.suburb }}</div>
-    <div class="property-subtitle">{{ property_type }}</div>
-    
-    <div class="property-details">
-        <div class="details-column">
-            <div class="detail-row">
-                <img src="{{ address_icon_path }}" alt="Address" class="icon">
-                <div>
-                    <span class="detail-label">Address:</span>
-                    <span class="detail-value detail-street">{{ property.street_address }}</span>,
-                    <span class="detail-value detail-suburb">{{ property.suburb_formatted }}</span>
-                </div>
-            </div>
-            
-            <div class="detail-row">
-                <img src="{{ floor_area_icon_path }}" alt="Floor Area" class="icon">
-                <div>
-                    <span class="detail-label">Floor Area:</span>
-                    <span class="detail-value normal">{{ property.floor_area }}</span>
-                </div>
-            </div>
-            
-            <div class="detail-row">
-                <img src="{{ price_icon_path }}" alt="Price" class="icon">
-                <div>
-                    <span class="detail-label">Price:</span>
-                    <span class="detail-value normal">{{ property.price }}</span>
-                </div>
-            </div>
-            
-            <div class="detail-row">
-                <img src="{{ zoning_icon_path }}" alt="Zoning" class="icon">
-                <div>
-                    <span class="detail-label">Zoning:</span>
-                    <span class="detail-value normal">{{ property.zoning }}</span>
-                </div>
-            </div>
-            
-            <div class="detail-row">
-                <img src="{{ type_icon_path }}" alt="Type" class="icon">
-                <div>
-                    <span class="detail-label">Type:</span>
-                    <span class="detail-value normal">{{ property.property_type }}</span>
-                </div>
-            </div>
-            
-            <div class="detail-row">
-                <img src="{{ car_spaces_icon_path }}" alt="Car Spaces" class="icon">
-                <div>
-                    <span class="detail-label">Car Spaces:</span>
-                    <span class="detail-value normal">{{ property.car_spaces }}</span>
-                </div>
-            </div>
-            
-            {% if property.comments %}
-            <div class="detail-row">
-                <img src="{{ comment_icon_path }}" alt="Comments" class="icon">
-                <div>
-                    <span class="detail-label">Comments:</span>
-                    <span class="detail-value normal">{{ property.comments }}</span>
-                </div>
-            </div>
-            {% endif %}
-        </div>
+    <div class="property-item">
+        <div class="property-section-title">{{ property.suburb }}</div>
+        <div class="property-subtitle">{{ property_type }}</div>
         
-        <div class="image-column">
-            {% if property.image %}
-            <img src="{{ property.image }}" alt="Property Image" class="property-image">
-            {% else %}
-            <div style="text-align: center; padding: 30px; border: 1px dashed #ccc;">No Image Available</div>
-            {% endif %}
+        <div class="property-details">
+            <div class="details-column">
+                <div class="detail-row">
+                    <img src="{{ address_icon_path }}" alt="Address" class="icon">
+                    <div>
+                        <span class="detail-label">Address:</span>
+                        <span class="detail-value detail-street">{{ property.street_address }}</span>,
+                        <span class="detail-value detail-suburb">{{ property.suburb_formatted }}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <img src="{{ floor_area_icon_path }}" alt="Floor Area" class="icon">
+                    <div>
+                        <span class="detail-label">Floor Area:</span>
+                        <span class="detail-value normal">{{ property.floor_area }}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <img src="{{ price_icon_path }}" alt="Price" class="icon">
+                    <div>
+                        <span class="detail-label">Price:</span>
+                        <span class="detail-value normal">{{ property.price }}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <img src="{{ zoning_icon_path }}" alt="Zoning" class="icon">
+                    <div>
+                        <span class="detail-label">Zoning:</span>
+                        <span class="detail-value normal">{{ property.zoning }}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <img src="{{ type_icon_path }}" alt="Type" class="icon">
+                    <div>
+                        <span class="detail-label">Type:</span>
+                        <span class="detail-value normal">{{ property.property_type }}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <img src="{{ car_spaces_icon_path }}" alt="Car Spaces" class="icon">
+                    <div>
+                        <span class="detail-label">Car Spaces:</span>
+                        <span class="detail-value normal">{{ property.car_spaces }}</span>
+                    </div>
+                </div>
+                
+                {% if property.comments %}
+                <div class="detail-row">
+                    <img src="{{ comment_icon_path }}" alt="Comments" class="icon">
+                    <div>
+                        <span class="detail-label">Comments:</span>
+                        <span class="detail-value normal">{{ property.comments }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="image-column">
+                {% if property.image %}
+                <img src="{{ property.image }}" alt="Property Image" class="property-image">
+                {% else %}
+                <div style="text-align: center; padding: 30px; border: 1px dashed #ccc;">No Image Available</div>
+                {% endif %}
+            </div>
         </div>
     </div>
+
     
     {% if not loop.last and loop.index != properties_per_page and loop.index != properties_per_page * 2 %}
-    {% set divider_color = loop.index % 2 == 0 and "blue-divider" or "orange-divider" %}
-    <div class="{{ divider_color }}" style="width: 90%; margin: 0 auto;"></div>
+    {% set divider_color = loop.index % 2 == 0 and "orange-divider" or "blue-divider" %}
+    <div class="{{ divider_color }}"></div>
     {% endif %}
-    
+        
     {% if loop.index == properties_per_page or loop.index == properties_per_page * 2 or loop.last %}
+    {# Close the if statement - fixes the template syntax error #}
+    {% endif %}
+    <div style="height: 0.5em;"></div>
 """
 
 def get_property_page_footer_template():
@@ -238,8 +259,8 @@ def get_property_page_footer_template():
     Returns the template for the property page footer
     """
     return """
-    <div style="position: absolute; bottom: 0; left: 0; width: 100%;" class="blue-bg">
-        <div style="text-align: center; padding: 15px;">{{ website }}</div>
+    <div style="position: absolute; bottom: 0; left: 0; width: 100%; margin: 0; padding: 0;" class="blue-bg">
+        <div style="text-align: center; padding: 15px; font-size: 12px">{{ website }}</div>
     </div>
 </div>
 """
@@ -250,16 +271,18 @@ def get_next_steps_template():
     """
     return """
 <div class="page">
+    <!-- Watermark -->
+    <img src="{{ watermark_path }}" class="page-watermark" alt="Watermark">
+    
     <div class="property-header">
-        <div style="width: 33%;"></div>
-        <div style="text-align: center; font-size: 16px; color: #3e5ba2; font-weight: 500;">{{ report_date }}</div>
-        <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 40px;">
+        <div style="text-align: center; font-size: 25px; color: rgb(62, 91, 162); font-weight: 500; text-transform: uppercase;">{{ report_date }}</div>
+        <img src="{{ logo_path }}" alt="{{ business_type }} Logo" style="height: 60px;">
     </div>
     
-    <div class="orange-divider" style="width: 95%; margin: 0 auto;"></div>
+    <div class="orange-divider"></div>
     
-    <div class="next-steps-container">
-        <h2 class="next-steps-title">NEXT STEPS:</h2>
+    <div class="next-steps-container" style="padding: 3% 8% 0 5%;">
+        <h2 class="next-steps-title" style="margin-left: 20px">NEXT STEPS:</h2>
         
         <div class="next-steps-content">
             <div class="next-step">
@@ -272,8 +295,8 @@ def get_next_steps_template():
         </div>
     </div>
     
-    <div style="position: absolute; bottom: 0; left: 0; width: 100%;" class="blue-bg">
-        <div style="text-align: center; padding: 15px;">{{ website }}</div>
+    <div style="position: absolute; bottom: 0; left: 0; width: 100%; margin: 0; padding: 0;" class="blue-bg">
+        <div style="text-align: center; padding: 15px; font-size: 12px">{{ website }}</div>
     </div>
 </div>
 """

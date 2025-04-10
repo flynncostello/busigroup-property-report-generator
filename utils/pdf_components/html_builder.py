@@ -22,6 +22,7 @@ class HtmlBuilder:
         """
         self.static_dir = static_dir
         self.images_dir = os.path.join(static_dir, 'images')
+        self.watermark_path = None  # Will be set during build_html
         
         # Setup Jinja2 environment
         template_loader = jinja2.FunctionLoader(self._get_template)
@@ -83,7 +84,7 @@ class HtmlBuilder:
         
         # Define paths
         logo_path = os.path.join(self.images_dir, f'{business_type}_logo.png')
-        watermark_path = os.path.join(self.images_dir, f'{business_type}_watermark.png')
+        self.watermark_path = os.path.join(self.images_dir, f'{business_type}_watermark.png')
         title_background_path = os.path.join(self.images_dir, 'title_page_background.png')
         map_path = os.path.join(self.images_dir, 'template_map.png')
         global_icon_path = os.path.join(self.images_dir, 'global_icon.png')
@@ -134,7 +135,8 @@ class HtmlBuilder:
             location=third_line,
             report_date=report_date,
             statistics=data['statistics'],
-            website=website
+            website=website,
+            watermark_path=self.watermark_path
         )
         html_parts.append(map_html)
         
@@ -170,7 +172,8 @@ class HtmlBuilder:
             business_type=business_type,
             logo_path=logo_path,
             report_date=report_date,
-            website=website
+            website=website,
+            watermark_path=self.watermark_path
         )
         html_parts.append(next_steps_html)
         
@@ -193,7 +196,8 @@ class HtmlBuilder:
                 section_title=section_title,
                 business_type=business_type,
                 logo_path=logo_path,
-                report_date=report_date
+                report_date=report_date,
+                watermark_path=self.watermark_path
             )
             html_parts.append(header_html)
             

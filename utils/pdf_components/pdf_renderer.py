@@ -1,9 +1,3 @@
-"""
-PDF Renderer module for converting HTML to PDF.
-
-This module handles the rendering of HTML to PDF using WeasyPrint.
-"""
-
 import os
 import logging
 from weasyprint import HTML, CSS
@@ -63,15 +57,17 @@ class PdfRenderer:
         output_filename = f"{business_type.lower()}_report_{timestamp}.pdf"
         output_path = os.path.join(self.output_dir, output_filename)
         
-        # Get CSS for proper rendering
+        # Get CSS path
         css_path = os.path.join(os.path.dirname(__file__), 'styles.css')
         
         try:
             # Generate PDF from HTML
             logger.info("Rendering HTML to PDF")
             
-            # Create PDF using WeasyPrint
+            # Create PDF using WeasyPrint with explicit margins set to 0
             base_url = self.static_dir  # Use static dir as base for relative paths
+            
+            # Generate the PDF
             HTML(string=html_content, base_url=base_url).write_pdf(
                 output_path,
                 stylesheets=[CSS(filename=css_path)]
