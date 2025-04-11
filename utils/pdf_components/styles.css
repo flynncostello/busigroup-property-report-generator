@@ -3,7 +3,32 @@
   Main CSS for generating PDF report
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap');
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-Medium.ttf') format('truetype');
+  font-weight: 500;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
 
 /* Reset and base styles */
 * {
@@ -145,7 +170,17 @@ body {
 .cover-page {
   padding: 0;
   margin: 0;
+  display: block;
+  position: relative;
+  height: 842pt;
+  overflow: hidden;
 }
+
+.cover-bg-image { z-index: 0; }
+.cover-logo-container { z-index: 2; }
+.cover-content { z-index: 3; }
+.footer { z-index: 4; }
+
 
 .cover-bg-image {
   position: absolute;
