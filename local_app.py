@@ -3,7 +3,7 @@
 Property Report Generator - Web Application
 
 This is the Flask web application that provides a browser interface
-for the Property Report Generator, optimized for deployment on Render.
+for the Property Report Generator.
 """
 
 import os
@@ -28,24 +28,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger('webapp')
 
-# Verify WeasyPrint is working correctly
-def verify_weasyprint():
-    """Verify WeasyPrint and its dependencies are correctly installed."""
-    try:
-        import weasyprint
-        logger.info(f"WeasyPrint version: {weasyprint.__version__}")
-        
-        # Try to import the specific libraries that often cause problems
-        from weasyprint.text.ffi import ffi, pango, gobject
-        logger.info("WeasyPrint dependencies verified successfully")
-        return True
-    except Exception as e:
-        logger.error(f"WeasyPrint verification failed: {str(e)}")
-        return False
-
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_key')
+app.secret_key = 'property_report_generator_secret_key'
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
@@ -55,10 +40,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 logger.info(f"Ensuring upload directory exists: {UPLOAD_FOLDER}")
-
-# Ensure output directory exists (for PDFs)
-os.makedirs('output', exist_ok=True)
-logger.info("Ensuring output directory exists")
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -179,33 +160,7 @@ def reset():
     logger.info("Form reset requested")
     return redirect(url_for('index'))
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint for Render."""
-    # Verify WeasyPrint is working
-    weasyprint_ok = verify_weasyprint()
-    
-    if weasyprint_ok:
-        return "OK", 200
-    else:
-        return "WeasyPrint configuration issue", 500
-
-# Startup verification
-logger.info("Verifying WeasyPrint installation...")
-if not verify_weasyprint():
-    logger.warning("WeasyPrint verification failed - PDF generation may not work correctly")
-else:
-    logger.info("WeasyPrint verification successful")
-
 if __name__ == '__main__':
-    # Use environment variable for port (Render sets this)
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    # Log startup information
-    logger.info(f"Starting Property Report Generator web application")
-    logger.info(f"Running on port: {port}")
-    logger.info(f"Debug mode: {debug}")
-    
-    # Start the application
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    logger.info("Starting Property Report Generator web application")
+    logger.info("Access the application at http://127.0.0.1:5000")
+    app.run(debug=True, host='127.0.0.1', port=5000)

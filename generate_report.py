@@ -88,11 +88,11 @@ def generate_report(file_path, business_type, title_line, location_line, report_
 
 if __name__ == "__main__":
     output_path = generate_report(
-        '/Users/flynncostello/Library/CloudStorage/OneDrive-Personal/Work/BusiHealth & BusiVet/Site Report Automator/pdf_report_generator/Properties_Hunters_Hill_NSW_2110_Crows_Nest_NSW_2065_04_04_2025_18_03.xlsx', 
-        'busivet', 
-        'Landscape Report & Site Search', 
-        'Oran Park & Mickleham', 
-        '10 April 2025'
+        '/Users/flynncostello/Library/CloudStorage/OneDrive-Personal/Work/BusiHealth/Site Report Automator/pdf_report_generator/Properties_Hunters_Hill_NSW_2110_Crows_Nest_NSW_2065_04_04_2025_18_03.xlsx', 
+        'busihealth', 
+        'Landscape Report & Property Dicussion', 
+        'Hunters Hill & Woolwich', 
+        '15 December 2024'
     )
     
     if output_path:
