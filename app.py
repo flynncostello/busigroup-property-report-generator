@@ -239,7 +239,7 @@ else:
 
 if __name__ == '__main__':
     # Use environment variable for port (Azure sets this)
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 8000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Log startup information
