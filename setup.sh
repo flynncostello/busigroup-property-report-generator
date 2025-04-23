@@ -28,7 +28,11 @@ conda activate "$ENV_NAME"
 ### 2. Install Homebrew system libraries ###
 echo
 echo ">>> Installing required native libraries via Homebrew..."
-brew install cairo pango gdk-pixbuf libffi || true
+
+# Only try brew if we're on macOS (not in Docker)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install cairo pango gdk-pixbuf libffi || true
+fi
 
 ### 3. Export environment variables for WeasyPrint ###
 echo
