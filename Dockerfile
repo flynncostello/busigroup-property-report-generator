@@ -36,6 +36,6 @@ ENV FLASK_DEBUG=False
 
 EXPOSE 8000
 
-CMD ["bash", "-c", "echo '🔧 Sourcing conda...' && source /opt/conda/etc/profile.d/conda.sh && echo '✅ Conda sourced' && conda activate reportgen && echo '✅ Env activated' && echo '🟢 Launching gunicorn...' && gunicorn app:app --bind 0.0.0.0:${PORT:-8000} || echo '❌ Gunicorn failed'"]
+CMD ["conda", "run", "-n", "reportgen", "gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
 
 HEALTHCHECK CMD curl --fail http://localhost:8000 || exit 1
