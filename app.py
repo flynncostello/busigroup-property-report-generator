@@ -48,6 +48,7 @@ def verify_weasyprint():
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_key')
 
+
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
