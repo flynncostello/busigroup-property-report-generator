@@ -20,22 +20,23 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-
 # Copy files
 COPY . .
 
 # Make script executable
 RUN chmod +x setup.sh
 
-# Skip Homebrew section at runtime, not by modifying the file
-RUN bash -c 'source setup.sh || true'
+# Activate conda, run setup.sh (which creates and installs into reportgen env)
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/conda/etc/profile.d/conda.sh && bash setup.sh
 
-# Set env vars
+# Environment vars
 ENV FLASK_APP=app.py
 ENV FLASK_DEBUG=False
 
 EXPOSE 8000
 
+# Run gunicorn inside the conda environment (no source needed)
 CMD ["conda", "run", "-n", "reportgen", "gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
 
 HEALTHCHECK CMD curl --fail http://localhost:8000 || exit 1
