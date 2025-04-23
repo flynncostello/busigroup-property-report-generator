@@ -36,6 +36,6 @@ ENV FLASK_DEBUG=False
 
 EXPOSE 8000
 
-CMD ["bash", "-c", "source /opt/conda/etc/profile.d/conda.sh && conda activate reportgen && gunicorn app:app --bind 0.0.0.0:8000"]
+CMD ["bash", "-c", "source /opt/conda/etc/profile.d/conda.sh && conda activate reportgen && echo 'Starting app...' && gunicorn app:app --bind 0.0.0.0:8000 || echo 'FAILED TO START'"]
 
 HEALTHCHECK CMD curl --fail http://localhost:8000 || exit 1
