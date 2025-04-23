@@ -5,6 +5,7 @@ Property Report Generator - Web Application
 This is the Flask web application that provides a browser interface
 for the Property Report Generator, optimized for deployment on Azure.
 """
+print("Flask app started")
 
 import os
 import sys
