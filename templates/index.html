@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Property Report Generator</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Property Report Generator</h1>
+            <div class="logo-container">
+                <i class="fas fa-file-pdf logo-icon"></i>
+                <h1>Property Report Generator</h1>
+            </div>
         </header>
         
         <div class="content">
@@ -17,7 +22,10 @@
                 {% if messages %}
                     <div class="flash-messages">
                         {% for category, message in messages %}
-                            <div class="flash-message {{ category }}">{{ message }}</div>
+                            <div class="flash-message {{ category }}">
+                                <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+                                {{ message }}
+                            </div>
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -25,56 +33,95 @@
             
             <div class="instructions">
                 <h2>Generate Property Report</h2>
-                <p>Please fill in the details below and upload your property Excel/CSV file to generate a professional property report.</p>
+                <p>Fill in the details below and upload your property data file to generate a professional PDF report.</p>
             </div>
             
             <form method="POST" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="business_type">Business Type:</label>
-                    <div class="radio-group">
-                        <input type="radio" id="busivet" name="business_type" value="busivet" checked>
-                        <label for="busivet">BusiVet</label>
+                <div class="form-group business-type-container">
+                    <label>Business Type</label>
+                    <div class="business-type-options">
+                        <div class="business-type-option">
+                            <input type="radio" id="busivet" name="business_type" value="busivet" checked>
+                            <label for="busivet" class="business-type-label">
+                                <i class="fas fa-hospital-alt"></i>
+                                <span>BusiVet</span>
+                            </label>
+                        </div>
                         
-                        <input type="radio" id="busihealth" name="business_type" value="busihealth">
-                        <label for="busihealth">BusiHealth</label>
+                        <div class="business-type-option">
+                            <input type="radio" id="busihealth" name="business_type" value="busihealth">
+                            <label for="busihealth" class="business-type-label">
+                                <i class="fas fa-heartbeat"></i>
+                                <span>BusiHealth</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="second_line">Report Title Line:</label>
-                    <input type="text" id="second_line" name="second_line" placeholder="e.g., Landscape Report & Site Search" value="Landscape Report & Site Search" required>
+                    <div class="input-container">
+                        <i class="fas fa-heading"></i>
+                        <input type="text" id="second_line" name="second_line" placeholder=" " required>
+                        <label for="second_line">Report Title (e.g., Landscape Report & Site Search)</label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="third_line">Location Line:</label>
-                    <input type="text" id="third_line" name="third_line" placeholder="e.g., Oran Park & Mickleham" value="Oran Park & Mickleham" required>
+                    <div class="input-container">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <input type="text" id="third_line" name="third_line" placeholder=" " required>
+                        <label for="third_line">Location (e.g., Oran Park & Mickleham)</label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="report_date">Report Date:</label>
-                    <input type="text" id="report_date" name="report_date" placeholder="e.g., 26 March 2025" required>
+                    <div class="input-container">
+                        <i class="fas fa-calendar-alt"></i>
+                        <input type="text" id="report_date" name="report_date" placeholder=" " required>
+                        <label for="report_date">Report Date</label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="file">Property Excel/CSV File:</label>
-                    <div class="file-input-container">
+                    <label><i class="fas fa-file-excel"></i> Property Data File</label>
+                    <div class="file-upload-container">
                         <input type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
-                        <div class="file-input-feedback" id="file-feedback">No file selected</div>
+                        <label for="file" class="file-upload-label">
+                            <span id="file-upload-icon"><i class="fas fa-cloud-upload-alt"></i></span>
+                            <span id="file-upload-text">Choose Excel/CSV file</span>
+                        </label>
+                        <div class="file-info" id="file-info">
+                            <span id="file-name">No file selected</span>
+                            <span id="file-size"></span>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="form-buttons">
-                    <button type="submit" class="btn btn-primary">Generate Report</button>
-                    <button type="submit" class="btn btn-secondary" formaction="/reset" formmethod="POST">Reset</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-file-pdf"></i> Generate Report
+                    </button>
+                    <button type="submit" class="btn btn-secondary" formaction="/reset" formmethod="POST">
+                        <i class="fas fa-redo-alt"></i> Reset
+                    </button>
                 </div>
             </form>
             
-            <div class="preparation-checklist">
-                <h3>Preparation Checklist:</h3>
-                <ul>
-                    <li>Ensure your Excel/CSV file has the required columns (Type, Property Photo, Street Address, etc.)</li>
-                    <li>Mark properties for inclusion in the report with 'T' in the 'PUT IN REPORT (T/F)' column</li>
-                    <li>Check that any referenced image files exist at their specified paths</li>
+            <div class="checklist-container">
+                <h3><i class="fas fa-clipboard-check"></i> Preparation Checklist</h3>
+                <ul class="checklist">
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Your Excel/CSV file must have all required columns (Type, Street Address, etc.)</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Properties for inclusion must be marked with 'T' in the 'PUT IN REPORT (T/F)' column</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>For best results, ensure property images are correctly referenced in the file</span>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -84,9 +131,19 @@
         </footer>
     </div>
     
-    <div class="loading-overlay" id="loading-overlay" style="display: none;">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Generating property report, please wait...</div>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner">
+                <i class="fas fa-file-pdf loading-icon"></i>
+                <svg class="circular" viewBox="25 25 50 50">
+                    <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="4" stroke-miterlimit="10"/>
+                </svg>
+            </div>
+            <div class="loading-text">
+                <h3>Generating Property Report</h3>
+                <p id="loading-message">Processing your data and creating PDF report...</p>
+            </div>
+        </div>
     </div>
     
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>

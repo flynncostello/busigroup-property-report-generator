@@ -5,9 +5,7 @@ This module handles the generation of PDF reports based on HTML templates.
 """
 
 import os
-import sys
 import logging
-from datetime import datetime
 from utils.pdf_components.pdf_renderer import PdfRenderer
 
 # Set up logger for this module

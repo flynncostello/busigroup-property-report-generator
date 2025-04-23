@@ -109,9 +109,9 @@ def get_map_page_template():
         <tbody>
             <tr>
                 <td class="left-header">Sites Available<br>For Lease</td>
-                <td>{{ statistics.for_lease.total }}</td>
-                <td {% if statistics.for_lease.criteria > 0 %}class="highlighted-cell"{% endif %}>{{ statistics.for_lease.criteria }}</td>
-                <td>${{ statistics.for_lease.avg_price }}</td>
+                <td><strong>{{ statistics.for_lease.total }}</strong></td>
+                <td {% if statistics.for_lease.criteria > 0 %}class="highlighted-cell"{% endif %}><strong>{{ statistics.for_lease.criteria }}</strong></td>
+                <td><strong>${{ statistics.for_lease.avg_price }}</strong></td>
             </tr>
             <tr>
                 <td class="left-header regular-row">Leased<br>(last 12 mths)</td>
@@ -121,9 +121,9 @@ def get_map_page_template():
             </tr>
             <tr>
                 <td class="left-header">Sites Available<br>For Sale</td>
-                <td>{{ statistics.for_sale.total }}</td>
-                <td {% if statistics.for_sale.criteria > 0 %}class="highlighted-cell"{% endif %}>{{ statistics.for_sale.criteria }}</td>
-                <td>${{ statistics.for_sale.avg_price }}</td>
+                <td><strong>{{ statistics.for_sale.total }}</strong></td>
+                <td {% if statistics.for_sale.criteria > 0 %}class="highlighted-cell"{% endif %}><strong>{{ statistics.for_sale.criteria }}</strong></td>
+                <td><strong>${{ statistics.for_sale.avg_price }}</strong></td>
             </tr>
             <tr>
                 <td class="left-header regular-row">Sold<br>(last 12 mths)</td>

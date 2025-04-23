@@ -8,13 +8,10 @@ import os
 import logging
 import pandas as pd
 import numpy as np
-import sys
 import base64
-import io
 import tempfile
 import zipfile
 import shutil
-from PIL import Image
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

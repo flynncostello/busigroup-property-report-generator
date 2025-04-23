@@ -3,14 +3,14 @@
 Property Report Generator - Web Application
 
 This is the Flask web application that provides a browser interface
-for the Property Report Generator, optimized for deployment on Render.
+for the Property Report Generator, optimized for deployment on Azure.
 """
 
 import os
 import sys
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify
 from werkzeug.utils import secure_filename
 import pandas as pd
 from utils.data_processor import process_excel_data
@@ -51,6 +51,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
 
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -140,7 +141,7 @@ def index():
                 
                 # Process data
                 logger.info("Processing property data...")
-                processed_data = process_excel_data(df)
+                processed_data = process_excel_data(df, filepath)  # Pass the filepath for image extraction
                 
                 # Generate PDF report
                 logger.info("Generating PDF report...")
@@ -157,7 +158,7 @@ def index():
                 return send_file(
                     pdf_path,
                     as_attachment=True,
-                    download_name=f"Property_Report_{report_date.replace(' ', '_')}.pdf"
+                    download_name=f"Property_Report_{third_line.replace(' ', '_')}_{report_date.replace(' ', '_')}.pdf"
                 )
                 
             except Exception as e:
@@ -179,9 +180,14 @@ def reset():
     logger.info("Form reset requested")
     return redirect(url_for('index'))
 
+@app.route('/download-complete', methods=['GET'])
+def download_complete():
+    """Endpoint to signal that download is complete (called via AJAX)."""
+    return jsonify({"status": "success", "message": "Download complete signal received"})
+
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint for Render."""
+    """Health check endpoint for Azure."""
     # Verify WeasyPrint is working
     weasyprint_ok = verify_weasyprint()
     
@@ -189,6 +195,38 @@ def health_check():
         return "OK", 200
     else:
         return "WeasyPrint configuration issue", 500
+
+@app.route('/status', methods=['GET'])
+def status():
+    """Extended status endpoint for debugging."""
+    import platform
+    
+    status_info = {
+        'timestamp': datetime.now().isoformat(),
+        'python_version': sys.version,
+        'platform': platform.platform(),
+        'directories': {
+            'uploads': os.path.exists(UPLOAD_FOLDER) and os.access(UPLOAD_FOLDER, os.W_OK),
+            'output': os.path.exists('output') and os.access('output', os.W_OK),
+            'static': os.path.exists('static')
+        }
+    }
+    
+    # Check WeasyPrint
+    try:
+        import weasyprint
+        status_info['weasyprint'] = {
+            'version': weasyprint.__version__,
+            'status': 'Working'
+        }
+    except Exception as e:
+        status_info['weasyprint'] = {
+            'status': 'Error',
+            'message': str(e)
+        }
+    
+    # Return detailed status
+    return jsonify(status_info)
 
 # Startup verification
 logger.info("Verifying WeasyPrint installation...")
@@ -198,8 +236,8 @@ else:
     logger.info("WeasyPrint verification successful")
 
 if __name__ == '__main__':
-    # Use environment variable for port (Render sets this)
-    port = int(os.environ.get('PORT', 5000))
+    # Use environment variable for port (Azure sets this)
+    port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Log startup information

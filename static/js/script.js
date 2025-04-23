@@ -1,5 +1,5 @@
 /*
- * Main JavaScript for Property Report Generator
+ * Property Report Generator - Enhanced UI Interactions
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,41 +16,69 @@ document.addEventListener('DOMContentLoaded', function() {
         const formattedDate = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
         reportDateInput.value = formattedDate;
         console.log('Default date set to:', formattedDate);
+        
+        // Trigger the not-placeholder-shown state for styling
+        reportDateInput.dispatchEvent(new Event('input'));
     }
 
-    // Handle file input change to show selected filename
+    // Handle file input change for improved file upload experience
     const fileInput = document.getElementById('file');
-    const fileFeedback = document.getElementById('file-feedback');
+    const fileUploadText = document.getElementById('file-upload-text');
+    const fileUploadIcon = document.getElementById('file-upload-icon');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
     
-    if (fileInput && fileFeedback) {
+    if (fileInput) {
         fileInput.addEventListener('change', function() {
             if (fileInput.files.length > 0) {
-                const fileName = fileInput.files[0].name;
-                const fileSize = (fileInput.files[0].size / 1024).toFixed(2) + ' KB';
-                console.log('File selected:', fileName, '(', fileSize, ')');
+                const file = fileInput.files[0];
+                const fileSizeValue = formatFileSize(file.size);
                 
-                // Display filename and validate type
-                fileFeedback.textContent = fileName;
+                console.log('File selected:', file.name, '(', fileSizeValue, ')');
                 
-                // Check if it's a valid file type
-                const fileExt = fileName.split('.').pop().toLowerCase();
+                // Update UI to show selected file
+                fileName.textContent = file.name;
+                fileSize.textContent = fileSizeValue;
+                fileUploadText.textContent = 'File selected';
+                fileUploadIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
+                
+                // Validate file type
+                const fileExt = file.name.split('.').pop().toLowerCase();
                 if (!['xlsx', 'xls', 'csv'].includes(fileExt)) {
-                    showFlashMessage('Please select a valid Excel (.xlsx, .xls) or CSV file.', 'error');
-                    fileInput.value = ''; // Clear the file input
-                    fileFeedback.textContent = 'No file selected';
-                    fileFeedback.classList.add('error');
-                } else {
-                    fileFeedback.classList.remove('error');
+                    showNotification('Please select a valid Excel (.xlsx, .xls) or CSV file.', 'error');
+                    resetFileInput();
                 }
             } else {
-                fileFeedback.textContent = 'No file selected';
-                fileFeedback.classList.remove('error');
+                resetFileInput();
             }
         });
     }
+    
+    // Function to reset file input UI
+    function resetFileInput() {
+        fileName.textContent = 'No file selected';
+        fileSize.textContent = '';
+        fileUploadText.textContent = 'Choose Excel/CSV file';
+        fileUploadIcon.innerHTML = '<i class="fas fa-cloud-upload-alt"></i>';
+        if (fileInput) fileInput.value = '';
+    }
+    
+    // Format file size in human-readable format
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
-    // Form submission validation and loading state
+    // Handle form submission with improved validation and loading animation
     const form = document.querySelector('form');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingMessage = document.getElementById('loading-message');
+    
     if (form) {
         form.addEventListener('submit', function(e) {
             console.log('Form submission initiated');
@@ -71,17 +99,18 @@ document.addEventListener('DOMContentLoaded', function() {
             let isValid = true;
             let errorMessage = '';
             
+            // Validation logic
             if (!businessType) {
                 isValid = false;
                 errorMessage = 'Please select a business type.';
                 console.log('Validation error: No business type selected');
             } else if (!secondLine) {
                 isValid = false;
-                errorMessage = 'Please enter the report title line.';
+                errorMessage = 'Please enter the report title.';
                 console.log('Validation error: No report title entered');
             } else if (!thirdLine) {
                 isValid = false;
-                errorMessage = 'Please enter the location line.';
+                errorMessage = 'Please enter the location.';
                 console.log('Validation error: No location entered');
             } else if (!reportDate) {
                 isValid = false;
@@ -93,8 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Validation error: No file selected');
             } else if (file) {
                 // Check file extension
-                const fileName = file.name.toLowerCase();
-                if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls') && !fileName.endsWith('.csv')) {
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                if (!['xlsx', 'xls', 'csv'].includes(fileExt)) {
                     isValid = false;
                     errorMessage = 'Please select a valid Excel (.xlsx, .xls) or CSV file.';
                     console.log('Validation error: Invalid file type');
@@ -103,19 +132,22 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!isValid) {
                 e.preventDefault();
-                showFlashMessage(errorMessage, 'error');
+                showNotification(errorMessage, 'error');
                 return;
             }
             
             console.log('Form validation passed, starting report generation');
             
-            // Create loading indicator
-            showLoadingOverlay('Generating property report, please wait...');
+            // Show loading overlay with animated progress messages
+            showLoading();
+            
+            // Track form submission for download completion
+            trackDownloadCompletion();
         });
     }
     
-    // Function to show flash message
-    function showFlashMessage(message, type = 'error') {
+    // Function to show notification/flash message
+    function showNotification(message, type = 'error') {
         console.log(`Showing ${type} message: ${message}`);
         
         // Check if flash messages container exists
@@ -137,42 +169,122 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create new message
         const messageElement = document.createElement('div');
         messageElement.className = `flash-message ${type}`;
-        messageElement.textContent = message;
+        
+        // Add icon based on message type
+        const icon = document.createElement('i');
+        icon.className = type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
+        messageElement.appendChild(icon);
+        
+        // Add message text
+        const textNode = document.createTextNode(` ${message}`);
+        messageElement.appendChild(textNode);
         
         // Add to container
         flashContainer.appendChild(messageElement);
         
         // Auto-hide after 5 seconds
         setTimeout(() => {
-            messageElement.remove();
+            messageElement.classList.add('fade-out');
             
-            // Remove container if empty
-            if (flashContainer.children.length === 0) {
-                flashContainer.remove();
-            }
+            // Remove after fade animation
+            setTimeout(() => {
+                messageElement.remove();
+                
+                // Remove container if empty
+                if (flashContainer.children.length === 0) {
+                    flashContainer.remove();
+                }
+                
+                console.log('Flash message hidden');
+            }, 300);
             
-            console.log('Flash message auto-hidden');
         }, 5000);
     }
     
-    // Function to show loading overlay
-    function showLoadingOverlay(message) {
-        console.log('Showing loading overlay with message:', message);
+    // Function to show loading overlay with animated messages
+    function showLoading() {
+        if (!loadingOverlay) return;
         
-        // Add loading class to body
-        document.body.classList.add('loading');
+        // Show loading overlay
+        loadingOverlay.classList.add('active');
         
-        // Create loading overlay
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'loading-overlay';
+        // Array of loading messages to cycle through
+        const messages = [
+            "Processing your data...",
+            "Analyzing property information...",
+            "Creating report layout...",
+            "Generating PDF report...",
+            "Almost done, preparing download..."
+        ];
         
-        // Add spinner and message
-        loadingOverlay.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div class="loading-text">${message}</div>
-        `;
+        let messageIndex = 0;
         
-        // Add to body
-        document.body.appendChild(loadingOverlay);
+        // Update message immediately
+        if (loadingMessage) {
+            loadingMessage.textContent = messages[messageIndex];
+        }
+        
+        // Cycle through messages every 3 seconds
+        const messageInterval = setInterval(() => {
+            messageIndex = (messageIndex + 1) % messages.length;
+            
+            if (loadingMessage) {
+                // Fade out
+                loadingMessage.style.opacity = 0;
+                
+                // Change text and fade in
+                setTimeout(() => {
+                    loadingMessage.textContent = messages[messageIndex];
+                    loadingMessage.style.opacity = 1;
+                }, 300);
+            }
+        }, 3000);
+        
+        // Store interval ID in window object to clear it later
+        window.loadingMessageInterval = messageInterval;
     }
+    
+    // Hide loading overlay and clear message interval
+    function hideLoading() {
+        if (!loadingOverlay) return;
+        
+        loadingOverlay.classList.remove('active');
+        
+        // Clear message interval if exists
+        if (window.loadingMessageInterval) {
+            clearInterval(window.loadingMessageInterval);
+            window.loadingMessageInterval = null;
+        }
+    }
+    
+    // Function to track when download is complete and hide loading overlay
+    function trackDownloadCompletion() {
+        // Set a timeout to check if the page is still loading after file should have downloaded
+        // This is a fallback in case the actual download tracking fails
+        setTimeout(() => {
+            hideLoading();
+            
+            // Show success message after download completes
+            showNotification('Report generated and downloaded successfully!', 'success');
+        }, 15000); // 15 seconds should be enough for most reports
+    }
+    
+    // Handle events for floating labels in input fields
+    const inputs = document.querySelectorAll('.input-container input');
+    
+    inputs.forEach(input => {
+        // Check initial state
+        if (input.value.trim() !== '') {
+            input.classList.add('has-content');
+        }
+        
+        // Handle input events
+        input.addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                this.classList.add('has-content');
+            } else {
+                this.classList.remove('has-content');
+            }
+        });
+    });
 });
