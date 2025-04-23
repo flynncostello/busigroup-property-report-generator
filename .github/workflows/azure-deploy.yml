@@ -25,6 +25,7 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: flynncostello/busigroup-property-report-generator:latest
+        platforms: linux/amd64
 
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
