@@ -41,4 +41,4 @@ EXPOSE 8000
 # Use a startup script that respects PORT env variable
 CMD ["/bin/bash", "./start.sh"]
 
-HEALTHCHECK CMD curl --fail http://localhost:${PORT:-8000} || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8000 || exit 1
