@@ -23,9 +23,8 @@ RUN apt-get update && apt-get install -y \
 # Copy files
 COPY . .
 
-# Make scripts executable
+# Make script executable
 RUN chmod +x setup.sh
-RUN chmod +x start.sh
 
 # Activate conda, run setup.sh (which creates and installs into reportgen env)
 SHELL ["/bin/bash", "-c"]
@@ -35,10 +34,10 @@ RUN source /opt/conda/etc/profile.d/conda.sh && bash setup.sh
 ENV FLASK_APP=app.py
 ENV FLASK_DEBUG=False
 
-# Use PORT environment variable with fallback to 8000
 EXPOSE 8000
 
-# Use a startup script that respects PORT env variable
-CMD ["/bin/bash", "./start.sh"]
+# Run gunicorn inside the conda environment (no source needed)
+CMD ["conda", "run", "-n", "reportgen", "gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
 
-HEALTHCHECK CMD curl --fail http://localhost:${PORT:-8000} || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8000 || exit 1
+ 
