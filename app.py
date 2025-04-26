@@ -187,6 +187,7 @@ def download_complete():
     """Endpoint to signal that download is complete (called via AJAX)."""
     return jsonify({"status": "success", "message": "Download complete signal received"})
 
+'''
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint for Azure."""
@@ -197,6 +198,14 @@ def health_check():
         return "OK", 200
     else:
         return "WeasyPrint configuration issue", 500
+'''
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Azure."""
+    return "OK", 200
+
+
 
 @app.route('/status', methods=['GET'])
 def status():
