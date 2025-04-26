@@ -1,19 +1,26 @@
+# Start with a slim Python base image
 FROM python:3.10-slim
 
+# Set working directory inside container
 WORKDIR /app
 
-# Install Flask
-RUN pip install flask gunicorn
+# Copy only requirements first (for faster caching)
+COPY requirements.txt .
 
-# Copy minimal files
-COPY app.py .
-COPY start.sh .
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Make script executable
+# Now copy the rest of the application code
+COPY . .
+
+# Make start script executable
 RUN chmod +x start.sh
 
+# Set environment variables
 ENV PORT=8000
+
+# Expose port
 EXPOSE 8000
 
-# Extremely simple startup
-CMD ["/bin/bash", "./start.sh"]
+# Define the startup command
+CMD ["./start.sh"]
