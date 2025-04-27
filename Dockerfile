@@ -1,26 +1,53 @@
-# Start with a slim Python base image
-FROM python:3.10-slim
+FROM continuumio/miniconda3
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy only requirements first (for faster caching)
-COPY requirements.txt .
+RUN mkdir -p /app/output /app/uploads /app/logs
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN chmod -R 777 /app/output /app/uploads /app/logs
 
-# Now copy the rest of the application code
+# Install WeasyPrint system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libffi-dev \
+    libcairo2 \
+    libcairo2-dev \
+    libpango1.0-0 \
+    libpangoft2-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf2.0-dev \
+    libxml2 \
+    libxslt1.1 \
+    libjpeg-dev \
+    zlib1g-dev \
+    curl \
+    git \
+    net-tools \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy files
 COPY . .
 
-# Make start script executable
+# Make scripts executable
+RUN chmod +x setup.sh
 RUN chmod +x start.sh
+RUN chmod +x keepalive.py
 
-# Set environment variables
-ENV PORT=8000
+# Activate conda, run setup.sh (which creates and installs into reportgen env)
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/conda/etc/profile.d/conda.sh && bash setup.sh
 
-# Expose port
-EXPOSE 8000
+# Environment vars
+ENV FLASK_APP=app.py
+ENV FLASK_DEBUG=False
 
-# Define the startup command
-CMD ["./start.sh"]
+# Use PORT environment variable with fallback to 8000
+EXPOSE 8000 8001
+
+# Use a startup script that respects PORT env variable
+CMD ["/bin/bash", "./start.sh"]
+
+# Update healthcheck to target keepalive server
+HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8001/health || exit 1

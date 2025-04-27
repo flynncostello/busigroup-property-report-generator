@@ -1,29 +1,41 @@
 #!/bin/bash
 
-# Log everything for debugging
-echo "=== CONTAINER START $(date) ==="
-echo "Current directory: $(pwd)"
-echo "Files: $(ls -la)"
-
-# Set path to include conda
+# Set PATH to include conda
 export PATH="/opt/conda/bin:$PATH"
+
+# Log beginning of startup
+echo "START.SH: Starting container initialization $(date)"
+echo "START.SH: Current directory: $(pwd)"
+echo "START.SH: Files: $(ls -la)"
 
 # Activate conda environment without using source
 eval "$(/opt/conda/bin/conda shell.bash hook)"
+echo "START.SH: Conda hook activated"
+
 conda activate reportgen
+echo "START.SH: Environment 'reportgen' activated"
 
 # Get the PORT from environment variable with a fallback to 8000
 export PORT=${PORT:-8000}
-echo "Starting Azure diagnostic app on port $PORT"
+export KEEPALIVE_PORT=8001
 
-# Start health check process
-echo "Starting health check process"
-python app.py &
-FLASK_PID=$!
+# Log environment variables
+echo "START.SH: PORT=$PORT, KEEPALIVE_PORT=$KEEPALIVE_PORT"
+echo "START.SH: Environment variables:"
+printenv | grep -E 'PORT|WEBSITE|DOCKER'
 
-# Log health check PID
-echo "Flask running with PID: $FLASK_PID"
+# Create a trap to ensure cleanup on exit
+trap 'echo "Shutting down all processes"; kill $(jobs -p) 2>/dev/null' EXIT
 
-# To prevent container from terminating, wait forever
-echo "Container will stay running to allow debugging"
-tail -f /dev/null
+# Start keepalive server in background
+echo "START.SH: Starting keepalive server..."
+python keepalive.py &
+KEEPALIVE_PID=$!
+echo "START.SH: Keepalive server started (PID: $KEEPALIVE_PID)"
+
+# Wait a moment for keepalive to initialize
+sleep 2
+
+# Start the main application with gunicorn
+echo "START.SH: Starting main application server..."
+exec gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --access-logfile - --log-level debug
