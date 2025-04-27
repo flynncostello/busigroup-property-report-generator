@@ -33,8 +33,8 @@ COPY . .
 # Make important scripts executable
 RUN chmod +x setup.sh start.sh keepalive.py
 
-# Activate conda and run setup.sh to create environment
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && bash setup.sh"
+# Create environment and install dependencies
+RUN conda run -n base bash setup.sh
 
 # Set environment variables
 ENV FLASK_APP=app.py
