@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Set PATH to include conda
 export PATH="/opt/conda/bin:$PATH"
@@ -25,7 +26,7 @@ echo "START.SH: Environment variables:"
 printenv | grep -E 'PORT|WEBSITE|DOCKER'
 
 # Create a trap to ensure cleanup on exit
-trap 'echo "Shutting down all processes"; kill $(jobs -p) 2>/dev/null' EXIT
+trap 'echo "START.SH: Shutting down all processes"; kill $(jobs -p) 2>/dev/null || true' EXIT
 
 # Start keepalive server in background
 echo "START.SH: Starting keepalive server..."
@@ -38,4 +39,9 @@ sleep 2
 
 # Start the main application with gunicorn
 echo "START.SH: Starting main application server..."
-exec gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --access-logfile - --log-level debug
+exec gunicorn app:app \
+  --bind 0.0.0.0:$PORT \
+  --workers 1 \
+  --timeout 120 \
+  --access-logfile - \
+  --log-level debug

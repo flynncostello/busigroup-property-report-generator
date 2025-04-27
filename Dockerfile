@@ -1,10 +1,11 @@
 FROM continuumio/miniconda3
 
+# Set working directory
 WORKDIR /app
 
-RUN mkdir -p /app/output /app/uploads /app/logs
-
-RUN chmod -R 777 /app/output /app/uploads /app/logs
+# Create necessary folders and set permissions
+RUN mkdir -p /app/output /app/uploads /app/logs && \
+    chmod -R 777 /app/output /app/uploads /app/logs
 
 # Install WeasyPrint system dependencies
 RUN apt-get update && apt-get install -y \
@@ -26,28 +27,25 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy files
+# Copy application code into the container
 COPY . .
 
-# Make scripts executable
-RUN chmod +x setup.sh
-RUN chmod +x start.sh
-RUN chmod +x keepalive.py
+# Make important scripts executable
+RUN chmod +x setup.sh start.sh keepalive.py
 
-# Activate conda, run setup.sh (which creates and installs into reportgen env)
-SHELL ["/bin/bash", "-c"]
-RUN source /opt/conda/etc/profile.d/conda.sh && bash setup.sh
+# Activate conda and run setup.sh to create environment
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && bash setup.sh"
 
-# Environment vars
+# Set environment variables
 ENV FLASK_APP=app.py
 ENV FLASK_DEBUG=False
 
-# Use PORT environment variable with fallback to 8000
+# Expose necessary ports
 EXPOSE 8000 8001
 
-# Use a startup script that respects PORT env variable
+# Command to run at container start
 CMD ["/bin/bash", "./start.sh"]
 
-# Update healthcheck to target keepalive server
+# Healthcheck to ensure app is running
 HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8001/health || exit 1
