@@ -224,6 +224,13 @@ def download_test():
     )
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global exception handler to prevent app crashes."""
+    logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+    return "An unexpected error occurred. Please try again later.", 500
+
+
 @app.route('/status', methods=['GET'])
 def status():
     """Extended status endpoint for debugging."""
