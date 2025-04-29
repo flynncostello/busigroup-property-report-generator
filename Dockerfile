@@ -40,4 +40,4 @@ ENV FLASK_ENV=production
 EXPOSE 8000
 
 # Start the app with Gunicorn directly
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]
+CMD ["/bin/sh", "-c", "gunicorn --bind 0.0.0.0:8000 app:app --log-level debug --access-logfile - --error-logfile - || tail -f /dev/null"]
