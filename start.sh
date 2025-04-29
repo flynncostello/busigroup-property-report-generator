@@ -64,9 +64,10 @@ echo
 echo ">>> Starting the web application"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # Local Mac development - run with python
+    echo "🧪 Detected macOS, launching Flask dev server..."
     python app.py
 else
-    # Docker or Azure production - run with Gunicorn
+    echo "🚀 Launching production server with Gunicorn..."
     gunicorn app:app --bind 0.0.0.0:$APP_PORT
+    wait $!
 fi
