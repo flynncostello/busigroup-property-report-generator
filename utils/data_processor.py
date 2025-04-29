@@ -382,7 +382,7 @@ def extract_property_data(row, property_type, image_data=None):
     # Count of properties processed with images
     if image_data:
         logger.info(f"✅ Property {street_address} has image data")
-        logger.info(f"Image data URL starts with: {image_data}")
+        logger.info(f"Image data URL starts with: {image_data[:50]}") # Log first 50 chars for brevity
     else:
         logger.info(f"❌ Property {street_address} is missing image data")
     
