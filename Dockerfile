@@ -1,51 +1,38 @@
+# Start from Miniconda3 (lightweight Conda Python base)
 FROM continuumio/miniconda3
 
-# Set working directory
+# Set working directory inside the container
 WORKDIR /app
 
-# Create necessary folders and set permissions
-RUN mkdir -p /app/output /app/uploads /app/logs && \
-    chmod -R 777 /app/output /app/uploads /app/logs
-
-# Install WeasyPrint system dependencies
+# Install WeasyPrint system dependencies (VERY important!)
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libffi-dev \
     libcairo2 \
     libcairo2-dev \
-    libpango1.0-0 \
-    libpangoft2-1.0-0 \
+    libpango-1.0-0 \
+    libpango1.0-dev \
     libgdk-pixbuf2.0-0 \
-    libgdk-pixbuf2.0-dev \
+    libffi-dev \
     libxml2 \
     libxslt1.1 \
     libjpeg-dev \
     zlib1g-dev \
+    fonts-freefont-ttf \
     curl \
     git \
-    net-tools \
-    procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy application code into the container
+# Copy your app code into the container
 COPY . .
 
-# Make important scripts executable
-RUN chmod +x setup.sh start.sh keepalive.py
+# Make your start.sh executable
+RUN chmod +x start.sh
 
-# Create environment and install dependencies
-RUN conda run -n base bash setup.sh
+# Set environment variable so start.sh knows it's inside Docker
+ENV RUNNING_IN_DOCKER=true
 
-# Set environment variables
-ENV FLASK_APP=app.py
-ENV FLASK_DEBUG=False
+# Expose port 8000 to outside
+EXPOSE 8000
 
-# Expose necessary ports
-EXPOSE 8000 8001
-
-# Command to run at container start
-CMD ["/bin/bash", "./start.sh"]
-
-# Healthcheck to ensure app is running
-HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:8001/health || exit 1
+# Run the setup and app launcher
+CMD ["./start.sh"]

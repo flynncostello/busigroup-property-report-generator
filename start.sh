@@ -1,47 +1,72 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# start.sh - One file to fully setup and run the Property Report Generator
 
-# Set PATH to include conda
-export PATH="/opt/conda/bin:$PATH"
+set -e  # Exit immediately on error
 
-# Log beginning of startup
-echo "START.SH: Starting container initialization $(date)"
-echo "START.SH: Current directory: $(pwd)"
-echo "START.SH: Files: $(ls -la)"
+ENV_NAME="reportgen"
+PYTHON_VERSION="3.12"
+APP_PORT=8000  # Standard port for Docker/Azure
 
-# Activate conda environment without using source
-eval "$(/opt/conda/bin/conda shell.bash hook)"
-echo "START.SH: Conda hook activated"
+echo "=== Property Report Generator - Full Setup and Launch ==="
 
-conda activate reportgen
-echo "START.SH: Environment 'reportgen' activated"
+# 1. Conda Environment Setup
+echo
+echo ">>> Checking or Creating Conda Environment: $ENV_NAME"
 
-# Get the PORT from environment variable with a fallback to 8000
-export PORT=${PORT:-8000}
-export KEEPALIVE_PORT=8001
+if conda info --envs | grep -q "$ENV_NAME"; then
+    echo "✅ Environment '$ENV_NAME' already exists."
+else
+    echo "🔧 Creating environment '$ENV_NAME' with Python $PYTHON_VERSION..."
+    conda create -n "$ENV_NAME" python="$PYTHON_VERSION" -y
+    echo "✅ Environment created."
+fi
 
-# Log environment variables
-echo "START.SH: PORT=$PORT, KEEPALIVE_PORT=$KEEPALIVE_PORT"
-echo "START.SH: Environment variables:"
-printenv | grep -E 'PORT|WEBSITE|DOCKER'
+# 2. Activate Environment
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "$ENV_NAME"
 
-# Create a trap to ensure cleanup on exit
-trap 'echo "START.SH: Shutting down all processes"; kill $(jobs -p) 2>/dev/null || true' EXIT
+# 3. Install Homebrew system libraries (Mac only)
+echo
+echo ">>> Installing system libraries (if on MacOS)"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install cairo pango gdk-pixbuf libffi || true
+fi
 
-# Start keepalive server in background
-echo "START.SH: Starting keepalive server..."
-python keepalive.py &
-KEEPALIVE_PID=$!
-echo "START.SH: Keepalive server started (PID: $KEEPALIVE_PID)"
+# 4. Install Python Packages
+echo
+echo ">>> Installing Python packages"
 
-# Wait a moment for keepalive to initialize
-sleep 2
+python -m pip install --upgrade pip
+pip install flask werkzeug jinja2 gunicorn pandas openpyxl numpy openpyxl-image-loader beautifulsoup4 weasyprint
 
-# Start the main application with gunicorn
-echo "START.SH: Starting main application server..."
-exec gunicorn app:app \
-  --bind 0.0.0.0:$PORT \
-  --workers 1 \
-  --timeout 120 \
-  --access-logfile - \
-  --log-level debug
+# 5. Create Necessary Directories
+echo
+echo ">>> Creating required directories"
+
+mkdir -p uploads output logs static/images static/css static/js templates
+
+# 6. Set WeasyPrint Environment Variables (Only Mac needs these)
+echo
+echo ">>> Setting WeasyPrint environment variables"
+
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig:/opt/homebrew/opt/cairo/lib/pkgconfig:$PKG_CONFIG_PATH"
+export DYLD_LIBRARY_PATH="/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+export LDFLAGS="-L/opt/homebrew/lib"
+export CPPFLAGS="-I/opt/homebrew/include"
+
+# 7. Set Flask Environment Variables
+export FLASK_APP=app.py
+export FLASK_DEBUG=False
+export PYTHONPATH="$(pwd):$PYTHONPATH"
+
+# 8. Launch App
+echo
+echo ">>> Starting the web application"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Local Mac development - run with python
+    python app.py
+else
+    # Docker or Azure production - run with Gunicorn
+    gunicorn app:app --bind 0.0.0.0:$APP_PORT
+fi

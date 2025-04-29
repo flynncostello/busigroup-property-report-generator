@@ -10,7 +10,7 @@ import os
 import sys
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import pandas as pd
 from utils.data_processor import process_excel_data
@@ -29,25 +29,25 @@ logging.basicConfig(
 print("✅ Flask app loaded")
 logger = logging.getLogger('webapp')
 
-# Verify WeasyPrint is working correctly
 def verify_weasyprint():
-    """Verify WeasyPrint and its dependencies are correctly installed."""
+    """Verify WeasyPrint installation by checking version and HTML rendering."""
     try:
         import weasyprint
         logger.info(f"WeasyPrint version: {weasyprint.__version__}")
         
-        # Try to import the specific libraries that often cause problems
-        from weasyprint.text.ffi import ffi, pango, gobject
-        logger.info("WeasyPrint dependencies verified successfully")
+        # Try a very simple PDF generation in memory
+        weasyprint.HTML(string="<h1>Test</h1>").write_pdf()
+        
+        logger.info("WeasyPrint basic rendering test passed")
         return True
     except Exception as e:
         logger.error(f"WeasyPrint verification failed: {str(e)}")
         return False
 
+
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_key')
-
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
@@ -188,18 +188,6 @@ def download_complete():
     """Endpoint to signal that download is complete (called via AJAX)."""
     return jsonify({"status": "success", "message": "Download complete signal received"})
 
-'''
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint for Azure."""
-    # Verify WeasyPrint is working
-    weasyprint_ok = verify_weasyprint()
-    
-    if weasyprint_ok:
-        return "OK", 200
-    else:
-        return "WeasyPrint configuration issue", 500
-'''
 
 @app.route('/health')
 def health_check():
@@ -270,9 +258,20 @@ if not verify_weasyprint():
 else:
     logger.info("WeasyPrint verification successful")
 
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static'),
+        'favicon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
+
+
+
 if __name__ == '__main__':
     # Use environment variable for port (Azure sets this)
-    port = int(os.environ.get('PORT', 8000))
+    port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Log startup information

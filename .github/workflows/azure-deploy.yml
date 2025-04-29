@@ -24,12 +24,14 @@ jobs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: flynncostello/busigroup-property-report-generator:latest
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/busigroup-property-report-generator:latest
         platforms: linux/amd64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: busigroup-property-report-generator
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        images: flynncostello/busigroup-property-report-generator:latest
+        images: ${{ secrets.DOCKERHUB_USERNAME }}/busigroup-property-report-generator:latest
