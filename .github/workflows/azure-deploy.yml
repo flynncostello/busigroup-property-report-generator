@@ -26,8 +26,6 @@ jobs:
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/busigroup-property-report-generator:latest
         platforms: linux/amd64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
 
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
