@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingMessage = document.getElementById('loading-message');
     
+    // Replace your existing form submission code with this
     if (form) {
         form.addEventListener('submit', function(e) {
             console.log('Form submission initiated');
@@ -86,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Don't show loading state for reset button click
             if (e.submitter && e.submitter.formAction && e.submitter.formAction.includes('/reset')) {
                 console.log('Reset button clicked, skipping validation');
-                return; // Allow reset to proceed normally
+                return; // Let the reset form submission happen normally
             }
             
             // Validate form fields
@@ -103,54 +104,46 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!businessType) {
                 isValid = false;
                 errorMessage = 'Please select a business type.';
-                console.log('Validation error: No business type selected');
             } else if (!secondLine) {
                 isValid = false;
                 errorMessage = 'Please enter the report title.';
-                console.log('Validation error: No report title entered');
             } else if (!thirdLine) {
                 isValid = false;
                 errorMessage = 'Please enter the location.';
-                console.log('Validation error: No location entered');
             } else if (!reportDate) {
                 isValid = false;
                 errorMessage = 'Please enter the report date.';
-                console.log('Validation error: No date entered');
             } else if (!file) {
                 isValid = false;
                 errorMessage = 'Please select an Excel or CSV file.';
-                console.log('Validation error: No file selected');
             } else if (file) {
                 // Check file extension
                 const fileExt = file.name.split('.').pop().toLowerCase();
                 if (!['xlsx', 'xls', 'csv'].includes(fileExt)) {
                     isValid = false;
                     errorMessage = 'Please select a valid Excel (.xlsx, .xls) or CSV file.';
-                    console.log('Validation error: Invalid file type');
                 }
             }
             
             if (!isValid) {
-                e.preventDefault(); // Only prevent submission if invalid
+                e.preventDefault(); // Prevent form submission on validation error
                 showNotification(errorMessage, 'error');
                 return;
             }
             
             console.log('Form validation passed, starting report generation');
             
-            // Show loading overlay with animated progress messages
+            // Show loading overlay
             showLoading();
             
-            // CRITICAL: Don't call preventDefault() here - let the form submit normally
-            // This was the key issue in your original code
-            console.log('Allowing form to submit normally to server');
+            // Important: DO NOT prevent the default form submission here!
+            // The form should submit normally to the server
             
-            // Set up a timeout to hide loading if the download takes too long
+            // The download completion code remains as a timeout
             setTimeout(() => {
                 hideLoading();
-                console.log('Load timeout reached, hiding loading overlay');
-                showNotification('Report generation complete. If download didn\'t start, please check the browser download area.', 'success');
-            }, 60000); // 60 seconds timeout for larger files
+                showNotification('Report generated and downloaded successfully!', 'success');
+            }, 30000); // Increased timeout to 30 seconds for larger files
         });
     }
     

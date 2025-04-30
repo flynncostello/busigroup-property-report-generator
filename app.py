@@ -16,7 +16,7 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 
 # Initialize Flask app early for faster startup
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_key')
 
 # Global initialization flag
