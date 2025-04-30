@@ -1,18 +1,18 @@
-# Start from Miniconda3 (lightweight Conda Python base)
-FROM continuumio/miniconda3
+# Use Python slim image instead of Miniconda for better compatibility
+FROM python:3.9-slim
 
-# Set working directory inside the container
+# Set working directory
 WORKDIR /app
 
 # Install WeasyPrint system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2 \
-    libcairo2-dev \
     libpango-1.0-0 \
-    libpango1.0-dev \
+    libpangocairo-1.0-0 \
     libgdk-pixbuf2.0-0 \
     libffi-dev \
+    shared-mime-info \
     libxml2 \
     libxslt1.1 \
     libjpeg-dev \
@@ -22,22 +22,25 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy your app code into the container
-COPY . .
+# Copy requirements file first for better caching
+COPY requirements.txt .
 
 # Install Python packages
-RUN pip install --upgrade pip
-RUN pip install flask werkzeug jinja2 gunicorn pandas openpyxl numpy openpyxl-image-loader beautifulsoup4 weasyprint
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Create folders needed by app (uploads, output, etc.)
+# Copy app code 
+COPY . .
+
+# Create necessary directories
 RUN mkdir -p uploads output logs static/images static/css static/js templates
 
 # Set environment variables
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
+ENV PORT=8000
 
-# Expose port
+# Expose port (ensure it matches PORT env var)
 EXPOSE 8000
 
-# Start the app with Gunicorn directly
-CMD ["/bin/sh", "-c", "gunicorn --bind 0.0.0.0:8000 app:app --log-level debug --access-logfile - --error-logfile - || tail -f /dev/null"]
+# Simplified startup command without fallback to tail
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app", "--log-level=info", "--timeout=120"]

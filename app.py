@@ -8,26 +8,59 @@ for the Property Report Generator, optimized for deployment on Azure.
 
 import os
 import sys
+import threading
 import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import pandas as pd
-from utils.data_processor import process_excel_data
-from utils.pdf_generator import generate_pdf
 
-# Set up logging
-os.makedirs('logs', exist_ok=True)
+# Initialize Flask app early for faster startup
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_key')
+
+# Global initialization flag
+initialization_complete = False
+
+# Set up logging - simpler setup during initial startup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(f"logs/webapp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
         logging.StreamHandler(sys.stdout)
     ]
 )
-print("✅ Flask app loaded")
 logger = logging.getLogger('webapp')
+logger.info("✅ Flask app loaded")
+
+# Configure upload settings
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
+
+# Create a fast health check endpoint for Azure
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Azure - responds immediately."""
+    return "OK", 200
+
+# Faster status endpoint with minimal checks
+@app.route('/status', methods=['GET'])
+def status():
+    """Extended status endpoint for debugging."""
+    import platform
+    
+    # Return minimal status info immediately
+    status_info = {
+        'status': 'running',
+        'timestamp': datetime.now().isoformat(),
+        'python_version': sys.version,
+        'platform': platform.platform(),
+        'initialization_complete': initialization_complete
+    }
+    
+    return jsonify(status_info)
 
 def verify_weasyprint():
     """Verify WeasyPrint installation by checking version and HTML rendering."""
@@ -44,24 +77,68 @@ def verify_weasyprint():
         logger.error(f"WeasyPrint verification failed: {str(e)}")
         return False
 
+def initialize_app_background():
+    """Perform initialization tasks in background after app has started."""
+    global initialization_complete
+    
+    try:
+        logger.info("Starting background initialization...")
+        
+        # Set up file logging now that we're in the background
+        try:
+            os.makedirs('logs', exist_ok=True)
+            file_handler = logging.FileHandler(f"logs/webapp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            logger.addHandler(file_handler)
+            logger.info("File logging initialized")
+        except Exception as e:
+            logger.error(f"Failed to set up file logging: {str(e)}")
+        
+        # Create directories
+        for directory in ['uploads', 'output', 'static/images', 'static/css', 'static/js', 'templates']:
+            os.makedirs(directory, exist_ok=True)
+            logger.info(f"Ensured directory exists: {directory}")
+        
+        # Verify WeasyPrint
+        weasyprint_status = verify_weasyprint()
+        logger.info(f"WeasyPrint verification: {'Successful' if weasyprint_status else 'Failed but continuing'}")
+        
+        # Import modules only after initialization
+        try:
+            from utils.data_processor import process_excel_data
+            from utils.pdf_generator import generate_pdf
+            logger.info("Successfully imported utility modules")
+        except Exception as e:
+            logger.error(f"Error importing utility modules: {str(e)}")
+        
+        # Mark initialization as complete
+        initialization_complete = True
+        logger.info("Background initialization completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Background initialization failed: {str(e)}", exc_info=True)
+        # Even if initialization fails, we'll set it to True so the app can attempt to function
+        initialization_complete = True
 
-# Initialize Flask app
-app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'property_report_generator_secret_key')
+# Start the background initialization thread
+background_init_thread = threading.Thread(target=initialize_app_background)
+background_init_thread.daemon = True
+background_init_thread.start()
 
-# Configure upload settings
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
-
-# Ensure upload directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-logger.info(f"Ensuring upload directory exists: {UPLOAD_FOLDER}")
-
-# Ensure output directory exists (for PDFs)
-os.makedirs('output', exist_ok=True)
-logger.info("Ensuring output directory exists")
+# Middleware to check initialization status
+@app.before_request
+def check_initialization():
+    """Check if app is initialized before processing complex requests."""
+    # Skip middleware for health/status endpoints and favicon
+    if request.path in ['/health', '/status', '/favicon.ico']:
+        return None
+        
+    # For all other requests, return a friendly message if not initialized
+    if not initialization_complete:
+        if request.path == '/':
+            flash('Application is initializing. Please wait a moment and refresh the page.', 'info')
+            return render_template('index.html')
+        return "Application is initializing, please try again shortly", 503
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -72,6 +149,10 @@ def index():
     """Handle the main page and form submission."""
     if request.method == 'POST':
         logger.info("Received form submission")
+        
+        # Import modules lazily to ensure they're imported after initialization
+        from utils.data_processor import process_excel_data
+        from utils.pdf_generator import generate_pdf
         
         # Check if business type was selected
         business_type = request.form.get('business_type')
@@ -161,7 +242,7 @@ def index():
                     pdf_path,
                     as_attachment=True,
                     download_name=f"Property_Report_{third_line.replace(' ', '_')}_{report_date.replace(' ', '_')}.pdf",
-                    mimetype='application/pdf'  # Add explicit mimetype
+                    mimetype='application/pdf'
                 )
                 
             except Exception as e:
@@ -188,29 +269,25 @@ def download_complete():
     """Endpoint to signal that download is complete (called via AJAX)."""
     return jsonify({"status": "success", "message": "Download complete signal received"})
 
-
-@app.route('/health')
-def health_check():
-    """Health check endpoint for Azure."""
-    return "OK", 200
-
-
 @app.route('/download-test')
 def download_test():
     """Test endpoint for file downloads."""
     test_file = os.path.join('output', 'test.txt')
     
     # Create a simple test file
-    with open(test_file, 'w') as f:
-        f.write("This is a test file for download")
-    
-    return send_file(
-        test_file,
-        as_attachment=True,
-        download_name="test.txt",
-        mimetype='text/plain'
-    )
-
+    try:
+        with open(test_file, 'w') as f:
+            f.write("This is a test file for download")
+        
+        return send_file(
+            test_file,
+            as_attachment=True,
+            download_name="test.txt",
+            mimetype='text/plain'
+        )
+    except Exception as e:
+        logger.error(f"Error in download test: {str(e)}")
+        return f"Error creating test file: {str(e)}", 500
 
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -218,60 +295,20 @@ def handle_exception(e):
     logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
     return "An unexpected error occurred. Please try again later.", 500
 
-
-@app.route('/status', methods=['GET'])
-def status():
-    """Extended status endpoint for debugging."""
-    import platform
-    
-    status_info = {
-        'timestamp': datetime.now().isoformat(),
-        'python_version': sys.version,
-        'platform': platform.platform(),
-        'directories': {
-            'uploads': os.path.exists(UPLOAD_FOLDER) and os.access(UPLOAD_FOLDER, os.W_OK),
-            'output': os.path.exists('output') and os.access('output', os.W_OK),
-            'static': os.path.exists('static')
-        }
-    }
-    
-    # Check WeasyPrint
-    try:
-        import weasyprint
-        status_info['weasyprint'] = {
-            'version': weasyprint.__version__,
-            'status': 'Working'
-        }
-    except Exception as e:
-        status_info['weasyprint'] = {
-            'status': 'Error',
-            'message': str(e)
-        }
-    
-    # Return detailed status
-    return jsonify(status_info)
-
-# Startup verification
-logger.info("Verifying WeasyPrint installation...")
-if not verify_weasyprint():
-    logger.warning("WeasyPrint verification failed - PDF generation may not work correctly")
-else:
-    logger.info("WeasyPrint verification successful")
-
-
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(
-        os.path.join(app.root_path, 'static'),
-        'favicon.ico',
-        mimetype='image/vnd.microsoft.icon'
-    )
-
-
+    try:
+        return send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'favicon.ico',
+            mimetype='image/vnd.microsoft.icon'
+        )
+    except:
+        return "", 204  # Return empty response if favicon not found
 
 if __name__ == '__main__':
     # Use environment variable for port (Azure sets this)
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 8000))  # Changed default to 8000 to match Dockerfile
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Log startup information

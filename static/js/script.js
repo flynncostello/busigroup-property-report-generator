@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Don't show loading state for reset button click
             if (e.submitter && e.submitter.formAction && e.submitter.formAction.includes('/reset')) {
                 console.log('Reset button clicked, skipping validation');
-                return;
+                return; // Allow reset to proceed normally
             }
             
             // Validate form fields
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (!isValid) {
-                e.preventDefault();
+                e.preventDefault(); // Only prevent submission if invalid
                 showNotification(errorMessage, 'error');
                 return;
             }
@@ -141,8 +141,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading overlay with animated progress messages
             showLoading();
             
-            // Track form submission for download completion
-            trackDownloadCompletion();
+            // CRITICAL: Don't call preventDefault() here - let the form submit normally
+            // This was the key issue in your original code
+            console.log('Allowing form to submit normally to server');
+            
+            // Set up a timeout to hide loading if the download takes too long
+            setTimeout(() => {
+                hideLoading();
+                console.log('Load timeout reached, hiding loading overlay');
+                showNotification('Report generation complete. If download didn\'t start, please check the browser download area.', 'success');
+            }, 60000); // 60 seconds timeout for larger files
         });
     }
     
@@ -236,9 +244,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     loadingMessage.textContent = messages[messageIndex];
                     loadingMessage.style.opacity = 1;
-                }, 300);
+                }, 100);
             }
-        }, 3000);
+        }, 1000);
         
         // Store interval ID in window object to clear it later
         window.loadingMessageInterval = messageInterval;
@@ -255,18 +263,6 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(window.loadingMessageInterval);
             window.loadingMessageInterval = null;
         }
-    }
-    
-    // Function to track when download is complete and hide loading overlay
-    function trackDownloadCompletion() {
-        // Set a timeout to check if the page is still loading after file should have downloaded
-        // This is a fallback in case the actual download tracking fails
-        setTimeout(() => {
-            hideLoading();
-            
-            // Show success message after download completes
-            showNotification('Report generated and downloaded successfully!', 'success');
-        }, 15000); // 15 seconds should be enough for most reports
     }
     
     // Handle events for floating labels in input fields
