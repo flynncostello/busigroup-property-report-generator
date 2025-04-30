@@ -89,16 +89,6 @@ def initialize_app_background():
     try:
         logger.info("Starting background initialization...")
         
-        # Set up file logging now that we're in the background
-        try:
-            os.makedirs('logs', exist_ok=True)
-            file_handler = logging.FileHandler(f"logs/webapp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-            logger.addHandler(file_handler)
-            logger.info("File logging initialized")
-        except Exception as e:
-            logger.error(f"Failed to set up file logging: {str(e)}")
-        
         # Create directories
         for directory in ['uploads', 'output', 'static/images', 'static/css', 'static/js', 'templates']:
             os.makedirs(directory, exist_ok=True)
@@ -241,7 +231,19 @@ def index():
                     report_date=report_date
                 )
                 
-                # Serve the PDF for download
+                from flask import after_this_request
+
+                # Prepare to delete file after it's been sent
+                @after_this_request
+                def remove_file(response):
+                    try:
+                        os.remove(pdf_path)
+                        logger.info(f"Deleted PDF after download: {pdf_path}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete PDF after download: {e}")
+                    return response
+
+                # Send the file for download
                 logger.info(f"Sending file {pdf_path} for download")
                 return send_file(
                     pdf_path,
@@ -249,6 +251,7 @@ def index():
                     download_name=f"Property_Report_{third_line.replace(' ', '_')}_{report_date.replace(' ', '_')}.pdf",
                     mimetype='application/pdf'
                 )
+
                 
             except Exception as e:
                 logger.error(f"Error processing file: {str(e)}", exc_info=True)
