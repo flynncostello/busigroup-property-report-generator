@@ -267,38 +267,8 @@ def index():
 def reset():
     """Reset the form and return to the index page."""
     logger.info("Form reset requested")
-    return redirect(url_for('index'))
-
-@app.route('/download-complete', methods=['GET'])
-def download_complete():
-    """Endpoint to signal that download is complete (called via AJAX)."""
-    return jsonify({"status": "success", "message": "Download complete signal received"})
-
-@app.route('/download-test')
-def download_test():
-    """Test endpoint for file downloads."""
-    test_file = os.path.join('output', 'test.txt')
-    
-    # Create a simple test file
-    try:
-        with open(test_file, 'w') as f:
-            f.write("This is a test file for download")
-        
-        return send_file(
-            test_file,
-            as_attachment=True,
-            download_name="test.txt",
-            mimetype='text/plain'
-        )
-    except Exception as e:
-        logger.error(f"Error in download test: {str(e)}")
-        return f"Error creating test file: {str(e)}", 500
-
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Global exception handler to prevent app crashes."""
-    logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
-    return "An unexpected error occurred. Please try again later.", 500
+    # Instead of redirecting, return a success response to be handled by JavaScript
+    return jsonify({"status": "success", "message": "Form reset successful"})
 
 @app.route('/favicon.ico')
 def favicon():

@@ -74,21 +74,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Handle form submission with improved validation and loading animation
-    const form = document.querySelector('form');
+    // Handle form submission with loading animation
+    const form = document.getElementById('reportForm');
     const loadingOverlay = document.getElementById('loading-overlay');
-    const loadingMessage = document.getElementById('loading-message');
     
-    // Replace your existing form submission code with this
     if (form) {
         form.addEventListener('submit', function(e) {
             console.log('Form submission initiated');
-            
-            // Don't show loading state for reset button click
-            if (e.submitter && e.submitter.formAction && e.submitter.formAction.includes('/reset')) {
-                console.log('Reset button clicked, skipping validation');
-                return; // Let the reset form submission happen normally
-            }
             
             // Validate form fields
             const businessType = document.querySelector('input[name="business_type"]:checked');
@@ -132,18 +124,63 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             console.log('Form validation passed, starting report generation');
+        });
+    }
+
+    // Reset button functionality - clear form fields without page reload
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
             
-            // Show loading overlay
-            showLoading();
+            // Reset all form fields
+            resetForm();
             
-            // Important: DO NOT prevent the default form submission here!
-            // The form should submit normally to the server
+            // Show success notification
+            showNotification('Form has been reset', 'success');
             
-            // The download completion code remains as a timeout
-            setTimeout(() => {
-                hideLoading();
-                showNotification('Report generated and downloaded successfully!', 'success');
-            }, 30000); // Increased timeout to 30 seconds for larger files
+            // Send the reset signal to server
+            fetch('/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then(response => {
+                console.log('Reset request sent to server');
+            }).catch(error => {
+                console.error('Error sending reset request:', error);
+            });
+        });
+    }
+
+    // Reset all form fields
+    function resetForm() {
+        // Reset text inputs
+        document.getElementById('second_line').value = '';
+        document.getElementById('third_line').value = '';
+        
+        // Reset date to current date
+        const now = new Date();
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        document.getElementById('report_date').value = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+        
+        // Reset business type to BusiVet
+        document.getElementById('busivet').checked = true;
+        
+        // Reset file input
+        resetFileInput();
+        
+        // Reset input styling
+        const inputs = document.querySelectorAll('.input-container input');
+        inputs.forEach(input => {
+            if (input.value.trim() === '') {
+                input.classList.remove('has-content');
+            } else {
+                input.classList.add('has-content');
+            }
         });
     }
     
@@ -202,65 +239,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
     
-    // Function to show loading overlay with animated messages
-    function showLoading() {
-        if (!loadingOverlay) return;
-        
-        // Show loading overlay
-        loadingOverlay.classList.add('active');
-        
-        // Array of loading messages to cycle through
-        const messages = [
-            "Processing your data...",
-            "Analyzing property information...",
-            "Creating report layout...",
-            "Generating PDF report...",
-            "Almost done, preparing download..."
-        ];
-        
-        let messageIndex = 0;
-        
-        // Update message immediately
-        if (loadingMessage) {
-            loadingMessage.textContent = messages[messageIndex];
-        }
-        
-        // Cycle through messages every 3 seconds
-        const messageInterval = setInterval(() => {
-            messageIndex = (messageIndex + 1) % messages.length;
-            
-            if (loadingMessage) {
-                // Fade out
-                loadingMessage.style.opacity = 0;
-                
-                // Change text and fade in
-                setTimeout(() => {
-                    loadingMessage.textContent = messages[messageIndex];
-                    loadingMessage.style.opacity = 1;
-                }, 100);
-            }
-        }, 1000);
-        
-        // Store interval ID in window object to clear it later
-        window.loadingMessageInterval = messageInterval;
-    }
-    
-    // Hide loading overlay and clear message interval
-    function hideLoading() {
-        if (!loadingOverlay) return;
-        
-        loadingOverlay.classList.remove('active');
-        
-        // Clear message interval if exists
-        if (window.loadingMessageInterval) {
-            clearInterval(window.loadingMessageInterval);
-            window.loadingMessageInterval = null;
-        }
-    }
-    
     // Handle events for floating labels in input fields
     const inputs = document.querySelectorAll('.input-container input');
-    
+
     inputs.forEach(input => {
         // Check initial state
         if (input.value.trim() !== '') {
@@ -268,12 +249,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Handle input events
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
             if (this.value.trim() !== '') {
                 this.classList.add('has-content');
             } else {
                 this.classList.remove('has-content');
             }
         });
+        
+        // Handle blur event to reset state if needed
+        input.addEventListener('blur', function () {
+            if (this.value.trim() === '') {
+                this.classList.remove('has-content');
+            }
+        });
     });
+
 });
+    

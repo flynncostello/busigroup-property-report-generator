@@ -13,7 +13,7 @@
         <header>
             <div class="logo-container">
                 <i class="fas fa-file-pdf logo-icon"></i>
-                <h1>Property Report Generator</h1>
+                <h1>BusiGroup - Property Report Generator</h1>
             </div>
         </header>
         
@@ -36,7 +36,7 @@
                 <p>Fill in the details below and upload your property data file to generate a professional PDF report.</p>
             </div>
             
-            <form method="POST" enctype="multipart/form-data">
+            <form id="reportForm" method="POST" enctype="multipart/form-data">
                 <div class="form-group business-type-container">
                     <label>Business Type</label>
                     <div class="business-type-options">
@@ -88,7 +88,7 @@
                         <input type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
                         <label for="file" class="file-upload-label">
                             <span id="file-upload-icon"><i class="fas fa-cloud-upload-alt"></i></span>
-                            <span id="file-upload-text">Choose Excel/CSV file</span>
+                            <span id="file-upload-text">Choose Excel</span>
                         </label>
                         <div class="file-info" id="file-info">
                             <span id="file-name">No file selected</span>
@@ -98,10 +98,10 @@
                 </div>
                 
                 <div class="form-buttons">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="generateBtn">
                         <i class="fas fa-file-pdf"></i> Generate Report
                     </button>
-                    <button type="submit" class="btn btn-secondary" formaction="/reset" formmethod="POST">
+                    <button type="button" class="btn btn-secondary" id="resetBtn">
                         <i class="fas fa-redo-alt"></i> Reset
                     </button>
                 </div>
@@ -112,7 +112,11 @@
                 <ul class="checklist">
                     <li>
                         <i class="fas fa-check-circle"></i>
-                        <span>Your Excel/CSV file must have all required columns (Type, Street Address, etc.)</span>
+                        <span>You can download an example Excel file with correct formatting here. Columns highlighted in yellow MUST BE FILLED IN.</span>
+                        <br>
+                        <a href="{{ url_for('static', filename='downloads/Example_Input.xlsx') }}" download class="btn btn-download">
+                            <i class="fas fa-download"></i> Download Example File
+                        </a>
                     </li>
                     <li>
                         <i class="fas fa-check-circle"></i>
@@ -120,30 +124,23 @@
                     </li>
                     <li>
                         <i class="fas fa-check-circle"></i>
-                        <span>For best results, ensure property images are correctly referenced in the file</span>
+                        <span>Cost calculations are done using the '$/m²' column so make sure to also fill this in</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Ensure property images are correctly embedded in the Property Photo column</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Other Key Notes: The 'Last Listed Price' column is the prices used for 'For Sale' properites and the 'Last Rental Price' is the price values used for 'For Rent' properties. These are the only price columns you need to fill in.</span>
                     </li>
                 </ul>
             </div>
         </div>
         
         <footer>
-            <p>Property Report Generator &copy; 2025</p>
+            <p>Property Report Generator &copy; BusiGroup 2025</p>
         </footer>
-    </div>
-    
-    <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-content">
-            <div class="loading-spinner">
-                <i class="fas fa-file-pdf loading-icon"></i>
-                <svg class="circular" viewBox="25 25 50 50">
-                    <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="4" stroke-miterlimit="10"/>
-                </svg>
-            </div>
-            <div class="loading-text">
-                <h3>Generating Property Report</h3>
-                <p id="loading-message">Processing your data and creating PDF report...</p>
-            </div>
-        </div>
     </div>
     
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
