@@ -185,7 +185,7 @@ def get_property_item_template():
                     <img src="{{ floor_area_icon_path }}" alt="Floor Area" class="icon">
                     <div>
                         <span class="detail-label">Floor Area:</span>
-                        <span class="detail-value normal">{{ property.floor_area }}</span>
+                        <span class="detail-value normal">{{ property.floor_area }} m²</span>
                     </div>
                 </div>
                 
@@ -290,7 +290,7 @@ def get_next_steps_template():
             </div>
             
             <div class="next-step">
-                Busi{{ business_type|capitalize }}{% if business_type == 'busivet' %}{{ business_type[4:]|capitalize }}{% else %}{{ business_type[4:]|capitalize }}{% endif %} will then review this evaluation in collaboration with you to determine which sites are to be explored in depth.
+                Busi{{ business_type[4:]|capitalize }} will then review this evaluation in collaboration with you to determine which sites are to be explored in depth.
             </div>
         </div>
     </div>
