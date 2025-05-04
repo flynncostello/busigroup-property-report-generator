@@ -98,7 +98,7 @@
                 </div>
                 
                 <div class="form-buttons">
-                    <button type="submit" class="btn btn-primary" id="generateBtn">
+                    <button type="button" class="btn btn-primary" id="generateBtn">
                         <i class="fas fa-file-pdf"></i> Generate Report
                     </button>
                     <button type="button" class="btn btn-secondary" id="resetBtn">
@@ -141,6 +141,59 @@
         <footer>
             <p>Property Report Generator &copy; BusiGroup 2025</p>
         </footer>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question-circle"></i> Confirm Report Generation</h3>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to generate the property report?</p>
+                <p>This will process your uploaded file and create a PDF report.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmGenerate" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Yes, Generate Report
+                </button>
+                <button id="cancelGenerate" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner">
+                <i class="fas fa-file-pdf loading-icon"></i>
+                <svg class="circular" viewBox="25 25 50 50">
+                    <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="5" stroke-miterlimit="10"/>
+                </svg>
+            </div>
+            <div class="loading-text">
+                <h3>Generating Report</h3>
+                <p>Please wait while we create your property report...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success Message Overlay -->
+    <div id="success-overlay" class="success-overlay">
+        <div class="success-content">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="success-text">
+                <h3>Download Complete</h3>
+                <p>Your property report has been successfully downloaded.</p>
+            </div>
+            <button id="closeSuccessBtn" class="btn btn-primary">
+                <i class="fas fa-check"></i> OK
+            </button>
+        </div>
     </div>
     
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
