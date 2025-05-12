@@ -1,5 +1,7 @@
 /*
  * Property Report Generator - Enhanced UI Interactions
+ * This file handles all client-side interactions including form validation,
+ * file uploads, sheet selection, and error handling with popup messages.
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -21,13 +23,21 @@ document.addEventListener('DOMContentLoaded', function() {
         reportDateInput.dispatchEvent(new Event('input'));
     }
 
-    // Handle file input change for improved file upload experience
+    // Get references to all important elements
     const fileInput = document.getElementById('file');
     const fileUploadText = document.getElementById('file-upload-text');
     const fileUploadIcon = document.getElementById('file-upload-icon');
     const fileName = document.getElementById('file-name');
     const fileSize = document.getElementById('file-size');
+    const sheetSelectionContainer = document.getElementById('sheet-selection-container');
+    const sheetSelect = document.getElementById('sheet_name');
+    const sheetLoading = document.getElementById('sheet-loading');
+    const generateBtn = document.getElementById('generateBtn');
     
+    // Initially disable generate button until all requirements are met
+    generateBtn.disabled = true;
+    
+    // Handle file input change event
     if (fileInput) {
         fileInput.addEventListener('change', function() {
             if (fileInput.files.length > 0) {
@@ -36,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 console.log('File selected:', file.name, '(', fileSizeValue, ')');
                 
-                // Update UI to show selected file
+                // Update UI to show selected file information
                 fileName.textContent = file.name;
                 fileSize.textContent = fileSizeValue;
                 fileUploadText.textContent = 'File selected';
@@ -45,8 +55,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Validate file type
                 const fileExt = file.name.split('.').pop().toLowerCase();
                 if (!['xlsx', 'xls', 'csv'].includes(fileExt)) {
-                    showNotification('Please select a valid Excel (.xlsx, .xls) or CSV file.', 'error');
+                    showErrorPopup('Please select a valid Excel (.xlsx, .xls) or CSV file.');
                     resetFileInput();
+                    return;
+                }
+                
+                // If it's an Excel file, automatically fetch sheet names
+                if (fileExt === 'xlsx' || fileExt === 'xls') {
+                    getSheetNames(file);
+                } else {
+                    // For CSV files, hide sheet selection and update button state
+                    sheetSelectionContainer.style.display = 'none';
+                    updateGenerateButtonState();
                 }
             } else {
                 resetFileInput();
@@ -54,16 +74,101 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Function to reset file input UI
+    // Handle sheet selection change
+    if (sheetSelect) {
+        sheetSelect.addEventListener('change', function() {
+            updateGenerateButtonState();
+        });
+    }
+    
+    /**
+     * Function to get sheet names from Excel file
+     * Sends the file to the backend and populates the dropdown with available sheets
+     */
+    function getSheetNames(file) {
+        sheetLoading.style.display = 'block';
+        sheetSelectionContainer.style.display = 'block';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch('/get_sheet_names', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            sheetLoading.style.display = 'none';
+            
+            if (data.error) {
+                console.error('Error getting sheet names:', data.error);
+                showErrorPopup(data.error);
+                sheetSelectionContainer.style.display = 'none';
+                return;
+            }
+            
+            // Clear existing options and add new ones
+            sheetSelect.innerHTML = '<option value="">Select a sheet...</option>';
+            
+            // Add each sheet name to the dropdown
+            data.sheet_names.forEach(sheetName => {
+                const option = document.createElement('option');
+                option.value = sheetName;
+                option.textContent = sheetName;
+                sheetSelect.appendChild(option);
+            });
+            
+            console.log('Sheet names loaded:', data.sheet_names);
+        })
+        .catch(error => {
+            console.error('Error fetching sheet names:', error);
+            sheetLoading.style.display = 'none';
+            showErrorPopup('Error loading sheet names. Please try again.');
+            sheetSelectionContainer.style.display = 'none';
+        });
+    }
+    
+    /**
+     * Function to update the state of the generate button
+     * Only enables the button when all required conditions are met
+     */
+    function updateGenerateButtonState() {
+        const file = fileInput.files[0];
+        const fileExt = file ? file.name.split('.').pop().toLowerCase() : '';
+        
+        // Check if all required fields are filled
+        if (!file) {
+            generateBtn.disabled = true;
+            return;
+        }
+        
+        // For Excel files, check if sheet is selected
+        if ((fileExt === 'xlsx' || fileExt === 'xls') && !sheetSelect.value) {
+            generateBtn.disabled = true;
+            return;
+        }
+        
+        // Enable button if all conditions are met
+        generateBtn.disabled = false;
+    }
+    
+    /**
+     * Function to reset file input UI to initial state
+     */
     function resetFileInput() {
         fileName.textContent = 'No file selected';
         fileSize.textContent = '';
         fileUploadText.textContent = 'Choose Excel/CSV file';
         fileUploadIcon.innerHTML = '<i class="fas fa-cloud-upload-alt"></i>';
         if (fileInput) fileInput.value = '';
+        sheetSelectionContainer.style.display = 'none';
+        sheetSelect.innerHTML = '<option value="">Select a sheet...</option>';
+        generateBtn.disabled = true;
     }
     
-    // Format file size in human-readable format
+    /**
+     * Format file size in human-readable format
+     */
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
         
@@ -74,9 +179,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Handle form submission with confirmation and loading animation
+    // Get references to modal elements
     const form = document.getElementById('reportForm');
-    const generateBtn = document.getElementById('generateBtn');
     const confirmationModal = document.getElementById('confirmationModal');
     const confirmGenerate = document.getElementById('confirmGenerate');
     const cancelGenerate = document.getElementById('cancelGenerate');
@@ -84,15 +188,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const successOverlay = document.getElementById('success-overlay');
     const closeSuccessBtn = document.getElementById('closeSuccessBtn');
     
-    // Show confirmation modal when Generate Report button is clicked
+    // Handle generate button click
     if (generateBtn) {
         generateBtn.addEventListener('click', function(e) {
             e.preventDefault();
             
             // Validate form fields before showing confirmation
-            if (validateForm()) {
-                // Show confirmation modal
+            const formValidation = validateForm();
+            if (formValidation.isValid) {
+                // All fields are valid, show confirmation modal
                 confirmationModal.classList.add('show');
+            } else {
+                // Show specific error popup for missing fields
+                showErrorPopup(formValidation.errorMessage);
             }
         });
     }
@@ -126,80 +234,179 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Validate form fields
+    /**
+     * Function to create and show error popup modal
+     * This creates a dynamic modal that displays error messages to the user
+     */
+    function showErrorPopup(message) {
+        // Check if error modal already exists, if not create it
+        let errorModal = document.getElementById('errorModal');
+        if (!errorModal) {
+            createErrorModal();
+            errorModal = document.getElementById('errorModal');
+        }
+        
+        // Update the error message
+        const errorMessage = document.getElementById('errorMessage');
+        errorMessage.textContent = message;
+        
+        // Show the error modal
+        errorModal.classList.add('show');
+        
+        console.log('Error popup shown:', message);
+    }
+    
+    /**
+     * Function to create error modal dynamically
+     * Creates a popup window specifically for displaying error messages
+     */
+    function createErrorModal() {
+        const modalHtml = `
+            <div id="errorModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header" style="background-color: #f0506e;">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                    </div>
+                    <div class="modal-body">
+                        <p id="errorMessage"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="closeErrorBtn" class="btn btn-primary">
+                            <i class="fas fa-check"></i> OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insert modal into the page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Add event listener for close button
+        document.getElementById('closeErrorBtn').addEventListener('click', function() {
+            document.getElementById('errorModal').classList.remove('show');
+        });
+        
+        // Close modal when clicking outside
+        document.getElementById('errorModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('show');
+            }
+        });
+    }
+    
+    /**
+     * Comprehensive form validation function
+     * Checks all required fields and returns specific error messages
+     */
     function validateForm() {
-        // Validate form fields
+        // Get all form values
         const businessType = document.querySelector('input[name="business_type"]:checked');
         const secondLine = document.getElementById('second_line').value.trim();
         const thirdLine = document.getElementById('third_line').value.trim();
         const reportDate = document.getElementById('report_date').value.trim();
         const file = document.getElementById('file').files[0];
+        const fileExt = file ? file.name.split('.').pop().toLowerCase() : '';
+        const sheetName = document.getElementById('sheet_name').value;
         
-        let isValid = true;
-        let errorMessage = '';
-        
-        // Validation logic
+        // Check each field and return specific error messages
         if (!businessType) {
-            isValid = false;
-            errorMessage = 'Please select a business type.';
-        } else if (!secondLine) {
-            isValid = false;
-            errorMessage = 'Please enter the report title.';
-        } else if (!thirdLine) {
-            isValid = false;
-            errorMessage = 'Please enter the location.';
-        } else if (!reportDate) {
-            isValid = false;
-            errorMessage = 'Please enter the report date.';
-        } else if (!file) {
-            isValid = false;
-            errorMessage = 'Please select an Excel or CSV file.';
-        } else if (file) {
-            // Check file extension
-            const fileExt = file.name.split('.').pop().toLowerCase();
-            if (!['xlsx', 'xls', 'csv'].includes(fileExt)) {
-                isValid = false;
-                errorMessage = 'Please select a valid Excel (.xlsx, .xls) or CSV file.';
-            }
+            return { isValid: false, errorMessage: 'Please select a business type (BusiVet or BusiHealth).' };
         }
         
-        if (!isValid) {
-            showNotification(errorMessage, 'error');
+        if (!secondLine) {
+            return { isValid: false, errorMessage: 'Please enter the report title.' };
         }
         
-        return isValid;
+        if (!thirdLine) {
+            return { isValid: false, errorMessage: 'Please enter the location.' };
+        }
+        
+        if (!reportDate) {
+            return { isValid: false, errorMessage: 'Please enter the report date.' };
+        }
+        
+        if (!file) {
+            return { isValid: false, errorMessage: 'Please select an Excel or CSV file.' };
+        }
+        
+        // Check file extension
+        if (!['xlsx', 'xls', 'csv'].includes(fileExt)) {
+            return { isValid: false, errorMessage: 'Please select a valid Excel (.xlsx, .xls) or CSV file.' };
+        }
+        
+        // For Excel files, check if sheet is selected
+        if ((fileExt === 'xlsx' || fileExt === 'xls') && !sheetName) {
+            return { isValid: false, errorMessage: 'Please select a sheet from the dropdown.' };
+        }
+        
+        // All validations passed
+        return { isValid: true, errorMessage: null };
     }
     
-    // Submit the form programmatically and handle download completion
+    /**
+     * Submit the form programmatically with proper error handling
+     * This function communicates with the backend and handles different response types
+     */
     function submitForm() {
         console.log('Submitting form...');
-        
-        // Create a hidden iframe to track download completion
-        const downloadFrame = document.createElement('iframe');
-        downloadFrame.style.display = 'none';
-        document.body.appendChild(downloadFrame);
         
         // Create a form data object for submission
         const formData = new FormData(form);
         
-        // Submit form using fetch API
+        // Submit form using fetch API with custom headers to identify AJAX requests
         fetch('/', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',  // This tells the backend this is an AJAX request
+                'Accept': 'application/json, application/pdf'  // We accept both JSON (errors) and PDF (success)
+            }
         })
         .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response content-type:', response.headers.get('content-type'));
+            
+            // Check if the response indicates an error (4xx or 5xx status codes)
             if (!response.ok) {
-                throw new Error('Server responded with an error');
+                // The response is an error, try to parse it as JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    // It's a JSON error response
+                    return response.json().then(errorData => {
+                        console.log('Received JSON error:', errorData);
+                        throw new Error(errorData.error || 'Unknown error occurred');
+                    });
+                } else {
+                    // It's not JSON, probably an HTML error page
+                    return response.text().then(htmlText => {
+                        console.log('Received non-JSON error response');
+                        throw new Error('Server error occurred');
+                    });
+                }
             }
-            return response.blob();
+            
+            // Check if the response is actually a PDF file
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/pdf')) {
+                console.log('Received PDF response');
+                return response.blob();
+            } else {
+                // If it's not a PDF and not an error, something unexpected happened
+                console.error('Unexpected response type:', contentType);
+                throw new Error('Invalid response format');
+            }
         })
         .then(blob => {
-            // Create a download link
+            if (!blob) return; // Skip if no blob (shouldn't happen)
+            
+            console.log('Processing PDF download...');
+            
+            // Create a download link for the PDF
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             
-            // Extract filename from Content-Disposition header if possible
-            // Otherwise create a default name
+            // Create a meaningful filename for the download
             const businessType = document.querySelector('input[name="business_type"]:checked').value;
             const thirdLine = document.getElementById('third_line').value.trim();
             const reportDate = document.getElementById('report_date').value.trim();
@@ -210,19 +417,19 @@ document.addEventListener('DOMContentLoaded', function() {
             a.style.display = 'none';
             document.body.appendChild(a);
             
-            // Start download
+            // Start the download
             a.click();
             
-            // Clean up
+            // Clean up resources
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
             
-            // Hide loading overlay after a small delay to ensure download started
+            // Hide loading overlay and show success message after a small delay
             setTimeout(() => {
                 loadingOverlay.classList.remove('active');
-                
                 // Show success message
                 successOverlay.classList.add('active');
+                console.log('PDF download initiated successfully');
             }, 1000);
         })
         .catch(error => {
@@ -231,12 +438,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide loading overlay
             loadingOverlay.classList.remove('active');
             
-            // Show error notification
-            showNotification('An error occurred while generating the report. Please try again.', 'error');
+            // Show error popup with the specific error message
+            showErrorPopup(error.message);
         });
     }
 
-    // Reset button functionality - clear form fields without page reload
+    // Reset button functionality
     const resetBtn = document.getElementById('resetBtn');
     if (resetBtn) {
         resetBtn.addEventListener('click', function(e) {
@@ -262,7 +469,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Reset all form fields
+    /**
+     * Reset all form fields to their default state
+     */
     function resetForm() {
         // Reset text inputs
         document.getElementById('second_line').value = '';
@@ -279,10 +488,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset business type to BusiVet
         document.getElementById('busivet').checked = true;
         
-        // Reset file input
+        // Reset file input and sheet selection
         resetFileInput();
         
-        // Reset input styling
+        // Reset input styling for floating labels
         const inputs = document.querySelectorAll('.input-container input');
         inputs.forEach(input => {
             if (input.value.trim() === '') {
@@ -293,7 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Function to show notification/flash message
+    /**
+     * Function to show notification/flash message
+     * This is used for non-error messages like success notifications
+     */
     function showNotification(message, type = 'error') {
         console.log(`Showing ${type} message: ${message}`);
         
@@ -313,7 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing messages
         flashContainer.innerHTML = '';
         
-        // Create new message
+        // Create new message element
         const messageElement = document.createElement('div');
         messageElement.className = `flash-message ${type}`;
         
@@ -352,12 +564,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const inputs = document.querySelectorAll('.input-container input');
 
     inputs.forEach(input => {
-        // Check initial state
+        // Check initial state for floating labels
         if (input.value.trim() !== '') {
             input.classList.add('has-content');
         }
         
-        // Handle input events
+        // Handle input events for real-time label updates
         input.addEventListener('input', function () {
             if (this.value.trim() !== '') {
                 this.classList.add('has-content');
@@ -372,6 +584,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.remove('has-content');
             }
         });
+    });
+
+    // Update generate button state when any form field changes
+    document.querySelectorAll('input, select').forEach(element => {
+        element.addEventListener('change', updateGenerateButtonState);
+        element.addEventListener('input', updateGenerateButtonState);
     });
 
 });

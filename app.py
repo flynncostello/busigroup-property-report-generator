@@ -139,6 +139,60 @@ def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def is_ajax_request():
+    """Reliably detect if this is an AJAX request from our JavaScript."""
+    # Method 1: Check for our custom header
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    
+    # Method 2: Check Accept header (our JavaScript sends this)
+    accept = request.headers.get('Accept', '')
+    if 'application/json' in accept:
+        return True
+    
+    # Method 3: Check Content-Type for multipart/form-data with AJAX indicator
+    content_type = request.headers.get('Content-Type', '')
+    if content_type.startswith('multipart/form-data') and request.headers.get('X-Requested-With'):
+        return True
+    
+    return False
+
+@app.route('/get_sheet_names', methods=['POST'])
+def get_sheet_names():
+    """Extract sheet names from uploaded Excel file."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file type'}), 400
+    
+    try:
+        # Save file temporarily
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Get sheet names
+        if filename.endswith('.csv'):
+            # CSV files don't have multiple sheets
+            return jsonify({'sheet_names': ['CSV']})
+        else:
+            # Excel file
+            excel_file = pd.ExcelFile(filepath)
+            sheet_names = excel_file.sheet_names
+            excel_file.close()
+            
+            logger.info(f"Found sheets in {filename}: {sheet_names}")
+            return jsonify({'sheet_names': sheet_names})
+            
+    except Exception as e:
+        logger.error(f"Error reading file: {str(e)}")
+        return jsonify({'error': f'Error reading file: {str(e)}'}), 500
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     """Handle the main page and form submission."""
@@ -146,41 +200,65 @@ def index():
         logger.info("Received form submission")
         
         # Import modules lazily to ensure they're imported after initialization
-        from utils.data_processor import process_excel_data
+        from utils.data_processor import process_excel_data, validate_headers
         from utils.pdf_generator import generate_pdf
+        
+        # Check if this is an AJAX request
+        ajax_request = is_ajax_request()
+        logger.info(f"Is AJAX request: {ajax_request}")
         
         # Check if business type was selected
         business_type = request.form.get('business_type')
         if not business_type:
             logger.warning("No business type selected")
-            flash('Please select a business type (BusiVet or BusiHealth)', 'error')
+            error_msg = 'Please select a business type (BusiVet or BusiHealth)'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
         
         # Check if the second line was provided
         second_line = request.form.get('second_line')
         if not second_line:
             logger.warning("No second line text provided")
-            flash('Please provide the second line text (e.g., Landscape Report & Site Search)', 'error')
+            error_msg = 'Please provide the second line text (e.g., Landscape Report & Site Search)'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
         
         # Check if the third line was provided
         third_line = request.form.get('third_line')
         if not third_line:
             logger.warning("No third line text provided")
-            flash('Please provide the third line text (e.g., Oran Park & Mickleham)', 'error')
+            error_msg = 'Please provide the third line text (e.g., Oran Park & Mickleham)'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
         
         # Check if date was provided
         report_date = request.form.get('report_date')
         if not report_date:
             logger.warning("No report date provided")
-            flash('Please provide a date for the report', 'error')
+            error_msg = 'Please provide a date for the report'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
 
         # Check if file was submitted
         if 'file' not in request.files:
             logger.warning("No file part in request")
-            flash('No file part', 'error')
+            error_msg = 'No file part'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
         
         file = request.files['file']
@@ -188,7 +266,22 @@ def index():
         # Check if file was selected
         if file.filename == '':
             logger.warning("No file selected")
-            flash('No selected file', 'error')
+            error_msg = 'No selected file'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.url)
+        
+        # Check if sheet was selected for Excel files
+        sheet_name = request.form.get('sheet_name')
+        if file.filename.lower().endswith(('.xlsx', '.xls')) and not sheet_name:
+            logger.warning("No sheet selected for Excel file")
+            error_msg = 'Please select a sheet from the dropdown'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
         
         # Process valid file
@@ -200,6 +293,19 @@ def index():
                 file.save(filepath)
                 logger.info(f"File saved at {filepath}")
                 
+                # Validate headers first
+                logger.info("Validating headers...")
+                header_validation = validate_headers(filepath, sheet_name)
+                if not header_validation['valid']:
+                    logger.error(f"Header validation failed: {header_validation['error']}")
+                    # For AJAX requests, return JSON error response
+                    if ajax_request:
+                        logger.info("Returning JSON error for AJAX request")
+                        return jsonify({'error': f"Header validation error: {header_validation['error']}"}), 400
+                    # For regular form submissions, use flash messages
+                    flash(f"Header validation error: {header_validation['error']}", 'error')
+                    return redirect(request.url)
+                
                 # Process the file data
                 logger.info("Reading Excel/CSV data...")
                 df = None
@@ -209,12 +315,16 @@ def index():
                     logger.info("Reading CSV file")
                     df = pd.read_csv(filepath)
                 else:  # Excel file
-                    logger.info("Reading Excel file")
-                    df = pd.read_excel(filepath)
+                    logger.info(f"Reading Excel file, sheet: {sheet_name}")
+                    df = pd.read_excel(filepath, sheet_name=sheet_name)
                 
                 if df is None or df.empty:
                     logger.error("Empty dataframe after reading file")
-                    flash('Unable to read data from the uploaded file', 'error')
+                    error_msg = 'Unable to read data from the uploaded file'
+                    if ajax_request:
+                        logger.info("Returning JSON error for AJAX request")
+                        return jsonify({'error': error_msg}), 400
+                    flash(error_msg, 'error')
                     return redirect(request.url)
                 
                 # Process data
@@ -255,11 +365,19 @@ def index():
                 
             except Exception as e:
                 logger.error(f"Error processing file: {str(e)}", exc_info=True)
-                flash(f'Error processing file: {str(e)}', 'error')
+                error_msg = f'Error processing file: {str(e)}'
+                if ajax_request:
+                    logger.info("Returning JSON error for AJAX request")
+                    return jsonify({'error': error_msg}), 500
+                flash(error_msg, 'error')
                 return redirect(request.url)
         else:
             logger.warning(f"Invalid file type: {file.filename}")
-            flash('File type not allowed. Please upload an Excel (.xlsx, .xls) or CSV file.', 'error')
+            error_msg = 'File type not allowed. Please upload an Excel (.xlsx, .xls) or CSV file.'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
             return redirect(request.url)
     
     # GET request: render the form

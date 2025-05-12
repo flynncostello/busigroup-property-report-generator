@@ -88,7 +88,7 @@
                         <input type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
                         <label for="file" class="file-upload-label">
                             <span id="file-upload-icon"><i class="fas fa-cloud-upload-alt"></i></span>
-                            <span id="file-upload-text">Choose Excel</span>
+                            <span id="file-upload-text">Choose Excel/CSV file</span>
                         </label>
                         <div class="file-info" id="file-info">
                             <span id="file-name">No file selected</span>
@@ -97,8 +97,22 @@
                     </div>
                 </div>
                 
+                <!-- Sheet Selection Dropdown (initially hidden) -->
+                <div class="form-group" id="sheet-selection-container" style="display: none;">
+                    <label for="sheet_name"><i class="fas fa-layer-group"></i> Select Sheet</label>
+                    <div class="input-container">
+                        <select id="sheet_name" name="sheet_name" required style="width: 100%; padding: 13px 16px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 15px; color: var(--dark-text); background-color: white;">
+                            <option value="">Select a sheet...</option>
+                        </select>
+                    </div>
+                    <div id="sheet-loading" style="display: none; text-align: center; margin-top: 10px;">
+                        <i class="fas fa-spinner fa-spin" style="margin-right: 5px;"></i>
+                        Loading sheets...
+                    </div>
+                </div>
+                
                 <div class="form-buttons">
-                    <button type="button" class="btn btn-primary" id="generateBtn">
+                    <button type="button" class="btn btn-primary" id="generateBtn" disabled>
                         <i class="fas fa-file-pdf"></i> Generate Report
                     </button>
                     <button type="button" class="btn btn-secondary" id="resetBtn">

@@ -16,6 +16,87 @@ import shutil
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
+def validate_headers(file_path, sheet_name=None):
+    """
+    Validate that headers are in the correct columns as specified.
+    
+    Args:
+        file_path (str): Path to the Excel/CSV file
+        sheet_name (str, optional): Name of the sheet to validate (for Excel files)
+        
+    Returns:
+        dict: {'valid': bool, 'error': str or None}
+    """
+    # Define expected headers with their column positions
+    # Fixed column mapping based on user requirements
+    expected_headers = {
+        'A': 'Type',
+        'B': 'Property Photo',
+        'C': 'Street Address',
+        'D': 'Suburb',
+        'E': 'State',
+        'F': 'Postcode',
+        'G': 'Site Zoning',
+        'H': 'Property Type',
+        'K': 'Car',  # Fixed: Car is in column K, not I
+        'N': 'Floor Size (m²)',
+        'AL': 'Last Listed Price (Sold/For Sale)',
+        'AT': 'Total Lease Price (Base + Outgoings)',
+        'AZ': 'Allowable Use in Zone (T/F)',
+        'BA': '$/m²',
+        'BD': 'PUT IN REPORT (T/F)',
+        'BF': "Busi's Comment"
+    }
+    
+    try:
+        # Read the file to get headers
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path, nrows=0)  # Read only headers
+        else:
+            df = pd.read_excel(file_path, sheet_name=sheet_name, nrows=0)  # Read only headers
+        
+        # Get column names and convert to list
+        actual_columns = df.columns.tolist()
+        
+        # Convert column letters to indices
+        def column_letter_to_index(col_letter):
+            """Convert column letter(s) to 0-based index"""
+            result = 0
+            for char in col_letter:
+                result = result * 26 + (ord(char.upper()) - ord('A')) + 1
+            return result - 1
+        
+        # Check each expected header
+        for col_letter, expected_header in expected_headers.items():
+            if expected_header is None:
+                continue  # Skip columns we don't care about
+                
+            col_index = column_letter_to_index(col_letter)
+            
+            # Check if the column index is within range
+            if col_index >= len(actual_columns):
+                return {
+                    'valid': False,
+                    'error': f"Column '{col_letter}' does not exist in the file. Expected '{expected_header}' at column {col_letter}."
+                }
+            
+            # Get the actual header at this position
+            actual_header = actual_columns[col_index]
+            
+            # Compare headers (case-sensitive)
+            if actual_header != expected_header:
+                return {
+                    'valid': False,
+                    'error': f"Column '{col_letter}' contains '{actual_header}' but should contain '{expected_header}'"
+                }
+        
+        logger.info("Header validation passed successfully")
+        return {'valid': True, 'error': None}
+        
+    except Exception as e:
+        logger.error(f"Error validating headers: {str(e)}")
+        return {'valid': False, 'error': f"Error reading file: {str(e)}"}
+
 def extract_excel_images(excel_path):
     """
     Extract images from Excel by treating the file as a ZIP archive.
