@@ -168,7 +168,7 @@ def process_excel_data(df, excel_file_path=None):
     required_columns = [
         'Type', 'Property Photo', 'Street Address', 'Suburb', 'State', 'Postcode',
         'Site Zoning', 'Property Type', 'Car', 'Floor Size (m²)', 'Sale Price',
-        'Last Listed Price', 'Last Rental Price', 'PUT IN REPORT (T/F)', 'Busi\'s Comment', '$/m²'
+        'Last Listed Price (Sold/For Sale)', 'Total Lease Price (Base + Outgoings)', 'PUT IN REPORT (T/F)', 'Busi\'s Comment', '$/m²'
     ]
     
     # Check for missing columns
@@ -344,13 +344,13 @@ def extract_property_data(row, property_type, image_data=None):
     # Determine price based on property type
     price = ""
     if property_type == 'For Lease':
-        if pd.notna(row['Last Rental Price']) and row['Last Rental Price'] != '':
-            price = format_price_string(row['Last Rental Price'])
+        if pd.notna(row['Total Lease Price (Base + Outgoings)']) and row['Total Lease Price (Base + Outgoings)'] != '':
+            price = format_price_string(row['Total Lease Price (Base + Outgoings)'])
         else:
             price = "Not Disclosed"
     elif property_type == 'For Sale':
-        if pd.notna(row['Last Listed Price']) and row['Last Listed Price'] != '':
-            price = format_price_string(row['Last Listed Price'])
+        if pd.notna(row['Last Listed Price (Sold/For Sale)']) and row['Last Listed Price (Sold/For Sale)'] != '':
+            price = format_price_string(row['Last Listed Price (Sold/For Sale)'])
         else:
             price = "Not Disclosed"
     
