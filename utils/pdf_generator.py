@@ -20,7 +20,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 logger.info(f"Static directory path: {STATIC_DIR}")
 logger.info(f"Output directory path: {OUTPUT_DIR}")
 
-def generate_pdf(data, business_type, second_line, third_line, report_date):
+def generate_pdf(data, business_type, first_line, second_line, third_line, report_date):
     """
     Generate a complete property report PDF using HTML templates.
     
@@ -43,6 +43,7 @@ def generate_pdf(data, business_type, second_line, third_line, report_date):
     output_path = pdf_renderer.render_pdf(
         data,
         business_type,
+        first_line,
         second_line,
         third_line, 
         report_date

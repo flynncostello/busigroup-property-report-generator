@@ -62,13 +62,14 @@ class HtmlBuilder:
             return templates_map[name]
         return ""
     
-    def build_html(self, data, business_type, second_line, third_line, report_date):
+    def build_html(self, data, business_type, first_line, second_line, third_line, report_date):
         """
         Build complete HTML for the report.
         
         Args:
             data (dict): Processed property data
             business_type (str): 'busivet' or 'busihealth'
+            first_line (str): First line of title text
             second_line (str): Second line of title text
             third_line (str): Third line of title text (location)
             report_date (str): Report date string
@@ -104,11 +105,9 @@ class HtmlBuilder:
         if business_type.lower() == 'busivet':
             website = 'BUSIVET.COM.AU'
             email = 'BEN@BUSIVET.COM.AU'
-            first_line = 'Vet Partners'
         else:  # busihealth
             website = 'BUSIHEALTH.COM'
             email = 'BEN@BUSIHEALTH.COM'
-            first_line = 'Health Partners'
         
         # Build cover page
         cover_template = self.env.get_template('cover_page')

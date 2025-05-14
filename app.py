@@ -218,6 +218,17 @@ def index():
             flash(error_msg, 'error')
             return redirect(request.url)
         
+        # Check if the first line was provided
+        first_line = request.form.get('first_line')
+        if not first_line:
+            logger.warning("No first line text provided")
+            error_msg = 'Please provide the first line text (e.g., Vet Partners)'
+            if ajax_request:
+                logger.info("Returning JSON error for AJAX request")
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.url)
+        
         # Check if the second line was provided
         second_line = request.form.get('second_line')
         if not second_line:
@@ -336,6 +347,7 @@ def index():
                 pdf_path = generate_pdf(
                     processed_data,
                     business_type=business_type,
+                    first_line=first_line,
                     second_line=second_line,
                     third_line=third_line,
                     report_date=report_date

@@ -27,13 +27,14 @@ class PdfRenderer:
         # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
     
-    def render_pdf(self, data, business_type, second_line, third_line, report_date):
+    def render_pdf(self, data, business_type, first_line, second_line, third_line, report_date):
         """
         Render PDF from the processed data.
         
         Args:
             data (dict): Processed property data
             business_type (str): 'busivet' or 'busihealth'
+            first_line (str): First line of title text
             second_line (str): Second line of title text
             third_line (str): Third line of title text (location)
             report_date (str): Report date string
@@ -47,6 +48,7 @@ class PdfRenderer:
         html_content = self.html_builder.build_html(
             data, 
             business_type, 
+            first_line,
             second_line, 
             third_line, 
             report_date

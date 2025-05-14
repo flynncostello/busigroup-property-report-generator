@@ -302,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateForm() {
         // Get all form values
         const businessType = document.querySelector('input[name="business_type"]:checked');
+        const firstLine = document.getElementById('first_line').value.trim();
         const secondLine = document.getElementById('second_line').value.trim();
         const thirdLine = document.getElementById('third_line').value.trim();
         const reportDate = document.getElementById('report_date').value.trim();
@@ -312,6 +313,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check each field and return specific error messages
         if (!businessType) {
             return { isValid: false, errorMessage: 'Please select a business type (BusiVet or BusiHealth).' };
+        }
+
+        if (!firstLine) {
+            return { isValid: false, errorMessage: 'Please enter the client header.' };
         }
         
         if (!secondLine) {
